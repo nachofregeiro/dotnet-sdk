@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using GlobalPayments.Api.Logging;
 using GlobalPayments.Api.Utils;
+using System.IO.Compression;
+using System.IO;
 
 namespace GlobalPayments.Api.Gateways {
     internal abstract class Gateway {
@@ -39,11 +41,28 @@ namespace GlobalPayments.Api.Gateways {
             try {
                 if (verb != HttpMethod.Get && data != null) {
                     request.Content = new StringContent(data, Encoding.UTF8, contentType ?? _contentType);
-                    RequestLogger?.RequestSent(data);                    
+                    RequestLogger?.RequestSent(data);
                 }
                 response = httpClient.SendAsync(request).Result;
 
-                string rawResponse = response.Content.ReadAsStringAsync().Result;
+                string rawResponse = string.Empty;
+                if (response.Content.Headers.ContentEncoding.Contains("gzip")) {
+                    var result = response.Content.ReadAsByteArrayAsync().Result;
+                    using (GZipStream gzipStream = new GZipStream(new MemoryStream(result), CompressionMode.Decompress)) {
+                        using (var stream = new MemoryStream()) {
+                            byte[] buffer = new byte[1024];
+                            int bytesRead;
+                            while ((bytesRead = gzipStream.Read(buffer, 0, buffer.Length)) > 0) {
+                                stream.Write(buffer, 0, bytesRead);
+                            }
+                            rawResponse = new UTF8Encoding().GetString(stream.ToArray());
+                        }
+                    }
+                }
+                else {
+                    rawResponse = response.Content.ReadAsStringAsync().Result;
+                }
+
                 RequestLogger?.ResponseReceived(rawResponse);
 
                 return new GatewayResponse {
