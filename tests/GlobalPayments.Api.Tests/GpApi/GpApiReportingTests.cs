@@ -31,7 +31,7 @@ namespace GlobalPayments.Api.Tests.GpApi
         }
 
         [TestMethod]
-        public void ReportFindTransactionWithCriteria()
+        public void ReportFindTransactionsWithCriteria()
         {
             List<TransactionSummary> summary = ReportingService.FindTransactions()
                 .OrderBy("time_created")

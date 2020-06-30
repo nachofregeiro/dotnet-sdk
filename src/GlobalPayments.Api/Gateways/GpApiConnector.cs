@@ -177,99 +177,91 @@ namespace GlobalPayments.Api.Gateways {
 
         public T ProcessReport<T>(ReportBuilder<T> builder) where T : class
         {
-            string reportUrl = string.Empty;
+            string reportUrl = "/ucp/transactions";
+            Dictionary<string, string> queryStringParams = new Dictionary<string, string>();
 
             if (builder is TransactionReportBuilder<T>)
             {
                 var trb = builder as TransactionReportBuilder<T>;
 
-                if (builder.ReportType == ReportType.TransactionDetail)
-                {
-                    reportUrl = $"/ucp/transactions/{trb.TransactionId}";
+                if (builder.ReportType == ReportType.TransactionDetail) {
+                    reportUrl += "/{trb.TransactionId}";
                 }
-                else if (builder.ReportType == ReportType.FindTransactions)
-                {
-                    reportUrl = $"/ucp/transactions?PAGE={trb.Page}&PAGE_SIZE={trb.PageSize}";
-
+                else if (builder.ReportType == ReportType.FindTransactions) {
+                    //PAGE
+                    if (trb.Page.HasValue) {
+                        queryStringParams.Add("PAGE", trb.Page.ToString());
+                    }
+                    //PAGE_SIZE
+                    if (trb.PageSize.HasValue) {
+                        queryStringParams.Add("PAGE_SIZE", trb.PageSize.ToString());
+                    }
                     //ORDER_BY
                     string[] orderByOptions = new string[] { "TIME_CREATED", "STATUS", "TYPE", "DEPOSIT_ID" };
-                    if (!string.IsNullOrEmpty(trb.OrderProperty) && orderByOptions.Contains(trb.OrderProperty.ToUpper()))
-                    {
-                        reportUrl += $"&ORDER_BY={trb.OrderProperty.ToUpper()}";
+                    if (!string.IsNullOrEmpty(trb.OrderProperty) && orderByOptions.Contains(trb.OrderProperty.ToUpper())) {
+                        queryStringParams.Add("ORDER_BY", trb.OrderProperty.ToUpper());
                     }
                     //ORDER
                     string[] orderOptions = new string[] { "ASC", "DESC" };
-                    if (!string.IsNullOrEmpty(trb.OrderDirection) && orderOptions.Contains(trb.OrderDirection.ToUpper()))
-                    {
-                        reportUrl += $"&ORDER={trb.OrderDirection.ToUpper()}";
+                    if (!string.IsNullOrEmpty(trb.OrderDirection) && orderOptions.Contains(trb.OrderDirection.ToUpper())) {
+                        queryStringParams.Add("ORDER", trb.OrderDirection.ToUpper());
                     }
                     //ACCOUNT_NAME
                     //ID
-                    if (!string.IsNullOrEmpty(trb.TransactionId))
-                    {
-                        reportUrl += $"&ID={trb.TransactionId}";
+                    if (!string.IsNullOrEmpty(trb.TransactionId)) {
+                        queryStringParams.Add("ID", trb.TransactionId);
                     }
                     //BRAND
                     //MASKED_NUMBER_FIRST6LAST4
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.CardNumberFirstSix) && !string.IsNullOrEmpty(trb.SearchBuilder.CardNumberLastFour))
-                    {
-                        reportUrl += $"&MASKED_NUMBER_FIRST6LAST4={trb.SearchBuilder.CardNumberFirstSix}{trb.SearchBuilder.CardNumberLastFour}";
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.CardNumberFirstSix) && !string.IsNullOrEmpty(trb.SearchBuilder.CardNumberLastFour)) {
+                        queryStringParams.Add("MASKED_NUMBER_FIRST6LAST4", trb.SearchBuilder.CardNumberFirstSix);
                     }
                     //ARN
                     //BRAND_REFERENCE
                     //AUTHCODE
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.AuthCode))
-                    {
-                        reportUrl += $"&AUTHCODE={trb.SearchBuilder.AuthCode}";
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.AuthCode)) {
+                        queryStringParams.Add("AUTHCODE", trb.SearchBuilder.AuthCode);
                     }
                     //REFERENCE
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.ReferenceNumber))
-                    {
-                        reportUrl += $"&REFERENCE={trb.SearchBuilder.ReferenceNumber}";
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.ReferenceNumber)) {
+                        queryStringParams.Add("AUTHCODE", trb.SearchBuilder.ReferenceNumber);
                     }
                     //STATUS
                     //FROM_TIME_CREATED
-                    reportUrl += $"&FROM_TIME_CREATED={(trb.StartDate ?? DateTime.UtcNow).ToString("yyyy-MM-dd")}";
+                    queryStringParams.Add("FROM_TIME_CREATED", (trb.StartDate ?? DateTime.UtcNow).ToString("yyyy-MM-dd"));
                     //TO_TIME_CREATED 
-                    if (trb.EndDate.HasValue)
-                    {
-                        reportUrl += $"&TO_TIME_CREATED={trb.EndDate.Value.ToString("yyyy-MM-dd")}";
+                    if (trb.EndDate.HasValue) {
+                        queryStringParams.Add("TO_TIME_CREATED", trb.EndDate.Value.ToString("yyyy-MM-dd"));
                     }
                     //DEPOSIT_ID
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.DepositReference))
-                    {
-                        reportUrl += $"&DEPOSIT_ID={trb.SearchBuilder.DepositReference}";
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.DepositReference)) {
+                        queryStringParams.Add("DEPOSIT_ID", trb.SearchBuilder.DepositReference);
                     }
                     //FROM_DEPOSIT_TIME_CREATED
-                    if (trb.SearchBuilder.StartDepositDate.HasValue)
-                    {
-                        reportUrl += $"&FROM_DEPOSIT_TIME_CREATED={trb.SearchBuilder.StartDepositDate.Value.ToString("yyyy-MM-dd")}";
+                    if (trb.SearchBuilder.StartDepositDate.HasValue) {
+                        queryStringParams.Add("FROM_DEPOSIT_TIME_CREATED", trb.SearchBuilder.StartDepositDate.Value.ToString("yyyy-MM-dd"));
                     }
                     //TO_DEPOSIT_TIME_CREATED
-                    if (trb.SearchBuilder.EndDepositDate.HasValue)
-                    {
-                        reportUrl += $"&TO_DEPOSIT_TIME_CREATED={trb.SearchBuilder.EndDepositDate.Value.ToString("yyyy-MM-dd")}";
+                    if (trb.SearchBuilder.EndDepositDate.HasValue) {
+                        queryStringParams.Add("TO_DEPOSIT_TIME_CREATED", trb.SearchBuilder.EndDepositDate.Value.ToString("yyyy-MM-dd"));
                     }
                     //FROM_BATCH_TIME_CREATED
-                    if (trb.SearchBuilder.StartBatchDate.HasValue)
-                    {
-                        reportUrl += $"&FROM_BATCH_TIME_CREATED={trb.SearchBuilder.StartBatchDate.Value.ToString("yyyy-MM-dd")}";
+                    if (trb.SearchBuilder.StartBatchDate.HasValue) {
+                        queryStringParams.Add("FROM_BATCH_TIME_CREATED", trb.SearchBuilder.StartBatchDate.Value.ToString("yyyy-MM-dd"));
                     }
                     //TO_BATCH_TIME_CREATED
-                    if (trb.SearchBuilder.EndBatchDate.HasValue)
-                    {
-                        reportUrl += $"&TO_BATCH_TIME_CREATED={trb.SearchBuilder.EndBatchDate.Value.ToString("yyyy-MM-dd")}";
+                    if (trb.SearchBuilder.EndBatchDate.HasValue) {
+                        queryStringParams.Add("TO_BATCH_TIME_CREATED", trb.SearchBuilder.EndBatchDate.Value.ToString("yyyy-MM-dd"));
                     }
                     //SYSTEM.MID
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.MerchantId))
-                    {
-                        reportUrl += $"&SYSTEM.MID={trb.SearchBuilder.MerchantId}";
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.MerchantId)) {
+                        queryStringParams.Add("SYSTEM.MID", trb.SearchBuilder.MerchantId);
                     }
                     //SYSTEM.HIERARCHY
                 }
             }
 
-            var response = DoTransaction(HttpMethod.Get, reportUrl);
+            var response = DoTransaction(HttpMethod.Get, reportUrl, queryStringParams: queryStringParams);
 
             return MapReportResponse<T>(response, builder.ReportType);
         }
@@ -285,12 +277,29 @@ namespace GlobalPayments.Api.Gateways {
                 var summary = new TransactionSummary
                 {
                     //ToDo: Map all transaction properties
+                    //"id": "TRN_uQPXvjCFWjzGaU3oUhPtR1LSGhPlFx",
                     TransactionId = doc.GetValue<string>("id"),
+                    //"time_created": "2020-05-30T01:22:03.914Z",
                     TransactionDate = doc.GetValue<DateTime>("time_created"),
+                    //"status": "PREAUTHORIZED",
                     TransactionStatus = doc.GetValue<string>("status"),
+                    //"type": "SALE",
                     TransactionType = doc.GetValue<string>("type"),
+                    //"channel": "CNP",
+                    //"amount": "10000",
                     Amount = doc.GetValue<decimal>("amount"),
+                    //"currency": "CAD",
                     Currency = doc.GetValue<string>("currency"),
+                    //"reference": "My-TRANS-184398092",
+                    ReferenceNumber = doc.GetValue<string>("reference"),
+                    //"time_created_reference": "",
+                    //"batch_id": "",
+                    BatchSequenceNumber = doc.GetValue<string>("batch_id"),
+                    //"country": "",
+                    //"action_create_id": "ACT_uQPXvjCFWjzGaU3oUhPtR1LSGhPlFx",
+                    //"parent_resource_id": "TRN_uQPXvjCFWjzGaU3oUhPtR1LSGhPlFx",
+                    
+                    //AuthCode
                 };
 
                 return summary;

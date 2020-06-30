@@ -19,8 +19,8 @@ namespace GlobalPayments.Api.Builders {
             }
         }
         internal string TransactionId { get; set; }
-        internal int Page { get; set; } = 1;
-        internal int PageSize { get; set; } = 25;
+        internal int? Page { get; set; }
+        internal int? PageSize { get; set; }
         internal string OrderProperty { get; set; }
         internal string OrderDirection { get; set; }
 
