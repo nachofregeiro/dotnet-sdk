@@ -214,7 +214,7 @@ namespace GlobalPayments.Api.Gateways {
                     //BRAND
                     //MASKED_NUMBER_FIRST6LAST4
                     if (!string.IsNullOrEmpty(trb.SearchBuilder.CardNumberFirstSix) && !string.IsNullOrEmpty(trb.SearchBuilder.CardNumberLastFour)) {
-                        queryStringParams.Add("MASKED_NUMBER_FIRST6LAST4", trb.SearchBuilder.CardNumberFirstSix);
+                        //queryStringParams.Add("MASKED_NUMBER_FIRST6LAST4", trb.SearchBuilder.CardNumberFirstSix);
                     }
                     //ARN
                     //BRAND_REFERENCE
@@ -224,7 +224,7 @@ namespace GlobalPayments.Api.Gateways {
                     }
                     //REFERENCE
                     if (!string.IsNullOrEmpty(trb.SearchBuilder.ReferenceNumber)) {
-                        queryStringParams.Add("AUTHCODE", trb.SearchBuilder.ReferenceNumber);
+                        queryStringParams.Add("REFERENCE", trb.SearchBuilder.ReferenceNumber);
                     }
                     //STATUS
                     //FROM_TIME_CREATED
@@ -266,54 +266,52 @@ namespace GlobalPayments.Api.Gateways {
             return MapReportResponse<T>(response, builder.ReportType);
         }
 
-        private T MapReportResponse<T>(string rawResponse, ReportType reportType) where T : class
-        {
+        private T MapReportResponse<T>(string rawResponse, ReportType reportType) where T : class {
             T result = Activator.CreateInstance<T>();
 
             JsonDoc json = JsonDoc.Parse(rawResponse);
 
-            Func<JsonDoc, TransactionSummary> mapTransactionSummary = (doc) =>
-            {
-                var summary = new TransactionSummary
-                {
+            Func<JsonDoc, TransactionSummary> mapTransactionSummary = (doc) => {
+                JsonDoc paymentMethod = doc.GetValue<JsonDoc>("payment_method");
+
+                JsonDoc card = paymentMethod?.GetValue<JsonDoc>("card");
+
+                var summary = new TransactionSummary {
                     //ToDo: Map all transaction properties
-                    //"id": "TRN_uQPXvjCFWjzGaU3oUhPtR1LSGhPlFx",
                     TransactionId = doc.GetValue<string>("id"),
-                    //"time_created": "2020-05-30T01:22:03.914Z",
                     TransactionDate = doc.GetValue<DateTime>("time_created"),
-                    //"status": "PREAUTHORIZED",
                     TransactionStatus = doc.GetValue<string>("status"),
-                    //"type": "SALE",
                     TransactionType = doc.GetValue<string>("type"),
-                    //"channel": "CNP",
-                    //"amount": "10000",
+                    // ?? = doc.GetValue<string>("channel"),
                     Amount = doc.GetValue<decimal>("amount"),
-                    //"currency": "CAD",
                     Currency = doc.GetValue<string>("currency"),
-                    //"reference": "My-TRANS-184398092",
                     ReferenceNumber = doc.GetValue<string>("reference"),
-                    //"time_created_reference": "",
-                    //"batch_id": "",
+                    // ?? = doc.GetValue<DateTime>("time_created_reference"),
                     BatchSequenceNumber = doc.GetValue<string>("batch_id"),
-                    //"country": "",
-                    //"action_create_id": "ACT_uQPXvjCFWjzGaU3oUhPtR1LSGhPlFx",
-                    //"parent_resource_id": "TRN_uQPXvjCFWjzGaU3oUhPtR1LSGhPlFx",
-                    
-                    //AuthCode
+                    // ?? = doc.GetValue<string>("country"),
+                    // ?? = doc.GetValue<string>("action_create_id"),
+                    OriginalTransactionId = doc.GetValue<string>("parent_resource_id"),
+
+                    //?? = paymentMethod?.GetValue<string>("message"),
+                    EntryMode = paymentMethod?.GetValue<string>("entry_mode"),
+                    //?? = paymentMethod?.GetValue<string>("name"),
+
+                    CardType = card?.GetValue<string>("brand"),
+                    AuthCode = card?.GetValue<string>("authcode"),
+                    //?? = card?.GetValue<string>("brand_reference"),
+                    AquirerReferenceNumber = card?.GetValue<string>("arn"),
+                    MaskedCardNumber = card?.GetValue<string>("masked_number_first6last4"),
                 };
 
                 return summary;
             };
 
-            if (reportType == ReportType.TransactionDetail && result is TransactionSummary)
-            {
+            if (reportType == ReportType.TransactionDetail && result is TransactionSummary) {
                 result = mapTransactionSummary(json) as T;
             }
-            else if (reportType == ReportType.FindTransactions && result is IEnumerable<TransactionSummary>)
-            {
+            else if (reportType == ReportType.FindTransactions && result is IEnumerable<TransactionSummary>) {
                 List<JsonDoc> transactions = json.GetValue<List<JsonDoc>>("transactions");
-                foreach (var doc in transactions)
-                {
+                foreach (var doc in transactions) {
                     (result as List<TransactionSummary>).Add(mapTransactionSummary(doc));
                 }
             }
