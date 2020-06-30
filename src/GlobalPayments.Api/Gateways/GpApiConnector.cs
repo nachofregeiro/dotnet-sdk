@@ -185,7 +185,7 @@ namespace GlobalPayments.Api.Gateways {
                 var trb = builder as TransactionReportBuilder<T>;
 
                 if (builder.ReportType == ReportType.TransactionDetail) {
-                    reportUrl += "/{trb.TransactionId}";
+                    reportUrl += $"/{trb.TransactionId}";
                 }
                 else if (builder.ReportType == ReportType.FindTransactions) {
                     //PAGE
