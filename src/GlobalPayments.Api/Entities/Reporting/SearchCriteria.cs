@@ -52,12 +52,14 @@ namespace GlobalPayments.Api.Entities {
         CardNumberLastFour, // Data Services
         CaseNumber, // Data Services
         DepositReference, // Data Services
+        EndBatchDate, // Data Services
         EndDepositDate, // Data Services
         Hierarchy, // Data Services
         LocalTransactionEndTime, // Data Services
         LocalTransactionStartTime, // Data Services
         MerchantId, // Data Services
         OrderId, // Data Services
+        StartBatchDate, // Data Services
         StartDepositDate, // Data Services
         Timezone // Data Services
     }
@@ -117,6 +119,8 @@ namespace GlobalPayments.Api.Entities {
 
         internal string DisplayName { get; set; }
 
+        internal DateTime? EndBatchDate { get; set; }
+
         internal DateTime? EndDate { get; set; }
 
         internal DateTime? EndDepositDate { get; set; }
@@ -158,6 +162,8 @@ namespace GlobalPayments.Api.Entities {
         internal string ScheduleId { get; set; }
 
         internal string SiteTrace { get; set; }
+
+        internal DateTime? StartBatchDate { get; set; }
 
         internal DateTime? StartDate { get; set; }
 

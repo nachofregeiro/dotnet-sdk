@@ -19,7 +19,12 @@ namespace GlobalPayments.Api.Builders {
             }
         }
         internal string TransactionId { get; set; }
-        
+        internal int Page { get; set; } = 1;
+        internal int PageSize { get; set; } = 25;
+        internal string OrderProperty { get; set; }
+        internal string OrderDirection { get; set; }
+
+
         private SearchCriteriaBuilder<TResult> _searchBuilder;
         internal SearchCriteriaBuilder<TResult> SearchBuilder {
             get {
@@ -71,6 +76,32 @@ namespace GlobalPayments.Api.Builders {
         /// <returns>TResult</returns>
         public TransactionReportBuilder<TResult> WithTransactionId(string value) {
             TransactionId = value;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the gateway paging criteria for the report.
+        /// </summary>
+        /// <param name="page">Page number</param>
+        /// <param name="pageSize">Page size</param>
+        /// <returns>TResult</returns>
+        public TransactionReportBuilder<TResult> WithPaging(int page, int pageSize)
+        {
+            Page = page;
+            PageSize = pageSize;
+            return this;
+        }
+
+        /// <summary>
+        /// Set the gateway order by criteria for the report.
+        /// </summary>
+        /// <param name="orderProperty">Order by property</param>
+        /// <param name="orderDirection">Order by direction</param>
+        /// <returns>TResult</returns>
+        public TransactionReportBuilder<TResult> OrderBy(string orderProperty, string orderDirection = null)
+        {
+            OrderProperty = orderProperty;
+            OrderDirection = orderDirection;
             return this;
         }
 

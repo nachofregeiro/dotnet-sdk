@@ -31,6 +31,8 @@ namespace GlobalPayments.Api
             };
 
             services.GatewayConnector = gateway;
+
+            services.ReportingService = gateway;
         }
 
         internal override void Validate() {

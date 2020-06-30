@@ -6,10 +6,10 @@ using GlobalPayments.Api.Utils;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Text;
+using System.Linq;
 
 namespace GlobalPayments.Api.Gateways {
-    internal class GpApiConnector : RestGateway, IPaymentGateway {
+    internal class GpApiConnector : RestGateway, IPaymentGateway, IReportingService {
         public string AppId { get; set; }
         public string AppKey { get; set; }
         public string Nonce { get; set; }
@@ -43,70 +43,62 @@ namespace GlobalPayments.Api.Gateways {
         }
 
         private GpApiTokenResponse SendAccessTokenRequest(GpApiRequest request) {
-            var response = DoTransaction(HttpMethod.Post, request.Endpoint, request.RequestBody);
+            var response = base.DoTransaction(HttpMethod.Post, request.Endpoint, request.RequestBody);
 
             return Activator.CreateInstance(typeof(GpApiTokenResponse), new object[] { response }) as GpApiTokenResponse;
         }
 
-        public object SendRequest<T>(GpApiRequest request) where T : GpApiEntity {
-            if (string.IsNullOrEmpty(SessionToken))
-                throw new ApiException("GP Api connector is not signed in, please check your configuration.");
-
-            var response = DoTransaction(HttpMethod.Get, request.Endpoint);
-
-            return Activator.CreateInstance(typeof(GpApiResponse<T>), new object[] { response, request.ResultsField }) as GpApiResponse<T>;
-        }
-
-        public Transaction ProcessAuthorization(AuthorizationBuilder builder)
+        public override string DoTransaction(HttpMethod verb, string endpoint, string data = null, Dictionary<string, string> queryStringParams = null)
         {
             if (string.IsNullOrEmpty(SessionToken))
             {
                 SignIn();
             }
+            return base.DoTransaction(verb, endpoint, data, queryStringParams);
+        }
 
-            if (builder.TransactionType == TransactionType.Auth) {
+        public Transaction ProcessAuthorization(AuthorizationBuilder builder)
+        {
+            if (builder.PaymentMethod is ICardData)
+            {
+                if (builder.TransactionType != TransactionType.Sale && builder.TransactionType != TransactionType.Refund)
+                {
+                    throw new ApiException("Transaction type not supported for this payment method");
+                }
 
-            } else if (builder.TransactionType == TransactionType.Capture) {
-
-            } else if (builder.TransactionType == TransactionType.Sale) {
                 var paymentMethod = new JsonDoc()
                     //.Set("first_name", "")
                     //.Set("last_name", "")
                     .Set("entry_mode", "ECOM") // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE]
                     .Set("id", "PMT_31087d9c-e68c-4389-9f13-39378e166ea5");
 
-                if (builder.PaymentMethod is ICardData) {
-                    var cardData = builder.PaymentMethod as ICardData;
+                var cardData = builder.PaymentMethod as ICardData;
 
-                    var expiryMonth = cardData.ExpMonth.HasValue ? cardData.ExpMonth.ToString().PadLeft(2, '0') : string.Empty;
-                    var expiryYear = cardData.ExpYear.HasValue ? cardData.ExpYear.ToString().PadLeft(4, '0').Substring(2, 2) : string.Empty;
+                var card = new JsonDoc()
+                    .Set("number", cardData.Number)
+                    .Set("expiry_month", cardData.ExpMonth.HasValue ? cardData.ExpMonth.ToString().PadLeft(2, '0') : string.Empty)
+                    .Set("expiry_year", cardData.ExpYear.HasValue ? cardData.ExpYear.ToString().PadLeft(4, '0').Substring(2, 2) : string.Empty)
+                    //.Set("track", "")
+                    //.Set("tag", "")
+                    //.Set("chip_condition", "") // [PREV_SUCCESS, PREV_FAILED]
+                    //.Set("pin_block", "")
+                    .Set("cvv", cardData.Cvn)
+                    .Set("cvv_indicator", "PRESENT") // [ILLEGIBLE, NOT_PRESENT, PRESENT]
+                    .Set("avs_address", "Flat 123")
+                    .Set("avs_postal_code", "50001");
+                //.Set("funding", "") // [DEBIT, CREDIT]
+                //.Set("authcode", "")
+                //.Set("brand_reference", "")
 
-                    var card = new JsonDoc()
-                        .Set("number", cardData.Number)
-                        .Set("expiry_month", expiryMonth)
-                        .Set("expiry_year", expiryYear)
-                        //.Set("track", "")
-                        //.Set("tag", "")
-                        //.Set("chip_condition", "") // [PREV_SUCCESS, PREV_FAILED]
-                        //.Set("pin_block", "")
-                        .Set("cvv", cardData.Cvn)
-                        .Set("cvv_indicator", "PRESENT") // [ILLEGIBLE, NOT_PRESENT, PRESENT]
-                        .Set("avs_address", "Flat 123")
-                        .Set("avs_postal_code", "50001");
-                        //.Set("funding", "") // [DEBIT, CREDIT]
-                        //.Set("authcode", "")
-                        //.Set("brand_reference", "")
-
-                    paymentMethod.Set("card", card);
-                }
+                paymentMethod.Set("card", card);
 
                 var data = new JsonDoc()
                     .Set("account_name", "Transaction_Processing")
-                    .Set("type", "SALE") // [SALE, REFUND]
+                    .Set("type", builder.TransactionType == TransactionType.Sale ? "SALE" : "REFUND") // [SALE, REFUND]
                     .Set("channel", "CNP") // [CP, CNP]
                     .Set("capture_mode", "AUTO") // [AUTO, LATER, MULTIPLE]
-                    //.Set("remaining_capture_count", "")
-                    //.Set("authorization_mode", "") // [PARTIAL, WHOLE]
+                                                 //.Set("remaining_capture_count", "")
+                                                 //.Set("authorization_mode", "") // [PARTIAL, WHOLE]
                     .Set("amount", builder.Amount.ToNumericCurrencyString())
                     .Set("currency", builder.Currency)
                     .Set("reference", Guid.NewGuid())
@@ -126,6 +118,31 @@ namespace GlobalPayments.Api.Gateways {
                 var response = DoTransaction(HttpMethod.Post, "/ucp/transactions", data.ToString());
 
                 return MapResponse(response);
+            }
+            else if (builder.PaymentMethod is ITrackData)
+            {
+                if (builder.TransactionType == TransactionType.Refund)
+                {
+                    string id = (builder.PaymentMethod as CreditTrackData).Value;
+
+                    var data = new JsonDoc()
+                        .Set("amount", builder.Amount.ToNumericCurrencyString());
+
+                    var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{id}/refund", data.ToString());
+
+                    return MapResponse(response);
+                }
+                else if (builder.TransactionType == TransactionType.Reversal)
+                {
+                    string id = (builder.PaymentMethod as CreditTrackData).Value;
+
+                    var data = new JsonDoc()
+                        .Set("amount", builder.Amount.ToNumericCurrencyString());
+
+                    var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{id}/reversal", data.ToString());
+
+                    return MapResponse(response);
+                }
             }
 
             throw new ApiException("Transaction type not implemented");
@@ -156,6 +173,143 @@ namespace GlobalPayments.Api.Gateways {
             transaction.ResponseCode = json.GetValue<JsonDoc>("action").GetValue<string>("result_code");
 
             return transaction;
+        }
+
+        public T ProcessReport<T>(ReportBuilder<T> builder) where T : class
+        {
+            string reportUrl = string.Empty;
+
+            if (builder is TransactionReportBuilder<T>)
+            {
+                var trb = builder as TransactionReportBuilder<T>;
+
+                if (builder.ReportType == ReportType.TransactionDetail)
+                {
+                    reportUrl = $"/ucp/transactions/{trb.TransactionId}";
+                }
+                else if (builder.ReportType == ReportType.FindTransactions)
+                {
+                    reportUrl = $"/ucp/transactions?PAGE={trb.Page}&PAGE_SIZE={trb.PageSize}";
+
+                    //ORDER_BY
+                    string[] orderByOptions = new string[] { "TIME_CREATED", "STATUS", "TYPE", "DEPOSIT_ID" };
+                    if (!string.IsNullOrEmpty(trb.OrderProperty) && orderByOptions.Contains(trb.OrderProperty.ToUpper()))
+                    {
+                        reportUrl += $"&ORDER_BY={trb.OrderProperty.ToUpper()}";
+                    }
+                    //ORDER
+                    string[] orderOptions = new string[] { "ASC", "DESC" };
+                    if (!string.IsNullOrEmpty(trb.OrderDirection) && orderOptions.Contains(trb.OrderDirection.ToUpper()))
+                    {
+                        reportUrl += $"&ORDER={trb.OrderDirection.ToUpper()}";
+                    }
+                    //ACCOUNT_NAME
+                    //ID
+                    if (!string.IsNullOrEmpty(trb.TransactionId))
+                    {
+                        reportUrl += $"&ID={trb.TransactionId}";
+                    }
+                    //BRAND
+                    //MASKED_NUMBER_FIRST6LAST4
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.CardNumberFirstSix) && !string.IsNullOrEmpty(trb.SearchBuilder.CardNumberLastFour))
+                    {
+                        reportUrl += $"&MASKED_NUMBER_FIRST6LAST4={trb.SearchBuilder.CardNumberFirstSix}{trb.SearchBuilder.CardNumberLastFour}";
+                    }
+                    //ARN
+                    //BRAND_REFERENCE
+                    //AUTHCODE
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.AuthCode))
+                    {
+                        reportUrl += $"&AUTHCODE={trb.SearchBuilder.AuthCode}";
+                    }
+                    //REFERENCE
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.ReferenceNumber))
+                    {
+                        reportUrl += $"&REFERENCE={trb.SearchBuilder.ReferenceNumber}";
+                    }
+                    //STATUS
+                    //FROM_TIME_CREATED
+                    reportUrl += $"&FROM_TIME_CREATED={(trb.StartDate ?? DateTime.UtcNow).ToString("yyyy-MM-dd")}";
+                    //TO_TIME_CREATED 
+                    if (trb.EndDate.HasValue)
+                    {
+                        reportUrl += $"&TO_TIME_CREATED={trb.EndDate.Value.ToString("yyyy-MM-dd")}";
+                    }
+                    //DEPOSIT_ID
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.DepositReference))
+                    {
+                        reportUrl += $"&DEPOSIT_ID={trb.SearchBuilder.DepositReference}";
+                    }
+                    //FROM_DEPOSIT_TIME_CREATED
+                    if (trb.SearchBuilder.StartDepositDate.HasValue)
+                    {
+                        reportUrl += $"&FROM_DEPOSIT_TIME_CREATED={trb.SearchBuilder.StartDepositDate.Value.ToString("yyyy-MM-dd")}";
+                    }
+                    //TO_DEPOSIT_TIME_CREATED
+                    if (trb.SearchBuilder.EndDepositDate.HasValue)
+                    {
+                        reportUrl += $"&TO_DEPOSIT_TIME_CREATED={trb.SearchBuilder.EndDepositDate.Value.ToString("yyyy-MM-dd")}";
+                    }
+                    //FROM_BATCH_TIME_CREATED
+                    if (trb.SearchBuilder.StartBatchDate.HasValue)
+                    {
+                        reportUrl += $"&FROM_BATCH_TIME_CREATED={trb.SearchBuilder.StartBatchDate.Value.ToString("yyyy-MM-dd")}";
+                    }
+                    //TO_BATCH_TIME_CREATED
+                    if (trb.SearchBuilder.EndBatchDate.HasValue)
+                    {
+                        reportUrl += $"&TO_BATCH_TIME_CREATED={trb.SearchBuilder.EndBatchDate.Value.ToString("yyyy-MM-dd")}";
+                    }
+                    //SYSTEM.MID
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.MerchantId))
+                    {
+                        reportUrl += $"&SYSTEM.MID={trb.SearchBuilder.MerchantId}";
+                    }
+                    //SYSTEM.HIERARCHY
+                }
+            }
+
+            var response = DoTransaction(HttpMethod.Get, reportUrl);
+
+            return MapReportResponse<T>(response, builder.ReportType);
+        }
+
+        private T MapReportResponse<T>(string rawResponse, ReportType reportType) where T : class
+        {
+            T result = Activator.CreateInstance<T>();
+
+            JsonDoc json = JsonDoc.Parse(rawResponse);
+
+            Func<JsonDoc, TransactionSummary> mapTransactionSummary = (doc) =>
+            {
+                var summary = new TransactionSummary
+                {
+                    //ToDo: Map all transaction properties
+                    TransactionId = doc.GetValue<string>("id"),
+                    TransactionDate = doc.GetValue<DateTime>("time_created"),
+                    TransactionStatus = doc.GetValue<string>("status"),
+                    TransactionType = doc.GetValue<string>("type"),
+                    Amount = doc.GetValue<decimal>("amount"),
+                    Currency = doc.GetValue<string>("currency"),
+                };
+
+                return summary;
+            };
+
+            if (reportType == ReportType.TransactionDetail && result is TransactionSummary)
+            {
+                result = mapTransactionSummary(json) as T;
+            }
+            else if (reportType == ReportType.FindTransactions && result is IEnumerable<TransactionSummary>)
+            {
+                List<JsonDoc> transactions = json.GetValue<List<JsonDoc>>("transactions");
+                foreach (var doc in transactions)
+                {
+                    (result as List<TransactionSummary>).Add(mapTransactionSummary(doc));
+                }
+            }
+
+            return result;
         }
     }
 }
