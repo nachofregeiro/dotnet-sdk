@@ -61,7 +61,9 @@ namespace GlobalPayments.Api.Gateways {
         {
             if (builder.PaymentMethod is ICardData)
             {
-                if (builder.TransactionType != TransactionType.Sale && builder.TransactionType != TransactionType.Refund)
+                if (builder.TransactionType != TransactionType.Auth
+                    && builder.TransactionType != TransactionType.Sale 
+                    && builder.TransactionType != TransactionType.Refund)
                 {
                     throw new ApiException("Transaction type not supported for this payment method");
                 }
@@ -86,9 +88,9 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("cvv_indicator", "PRESENT") // [ILLEGIBLE, NOT_PRESENT, PRESENT]
                     .Set("avs_address", "Flat 123")
                     .Set("avs_postal_code", "50001");
-                //.Set("funding", "") // [DEBIT, CREDIT]
-                //.Set("authcode", "")
-                //.Set("brand_reference", "")
+                    //.Set("funding", "") // [DEBIT, CREDIT]
+                    //.Set("authcode", "")
+                    //.Set("brand_reference", "")
 
                 paymentMethod.Set("card", card);
 
@@ -96,9 +98,9 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("account_name", "Transaction_Processing")
                     .Set("type", builder.TransactionType == TransactionType.Sale ? "SALE" : "REFUND") // [SALE, REFUND]
                     .Set("channel", "CNP") // [CP, CNP]
-                    .Set("capture_mode", "AUTO") // [AUTO, LATER, MULTIPLE]
-                                                 //.Set("remaining_capture_count", "")
-                                                 //.Set("authorization_mode", "") // [PARTIAL, WHOLE]
+                    .Set("capture_mode", builder.TransactionType == TransactionType.Auth ? "AUTO" : "AUTO") // [AUTO, LATER, MULTIPLE]
+                    //.Set("remaining_capture_count", "")
+                    //.Set("authorization_mode", "") // [PARTIAL, WHOLE]
                     .Set("amount", builder.Amount.ToNumericCurrencyString())
                     .Set("currency", builder.Currency)
                     .Set("reference", Guid.NewGuid())
@@ -119,36 +121,37 @@ namespace GlobalPayments.Api.Gateways {
 
                 return MapResponse(response);
             }
-            else if (builder.PaymentMethod is ITrackData)
-            {
-                if (builder.TransactionType == TransactionType.Refund)
-                {
-                    string id = (builder.PaymentMethod as CreditTrackData).Value;
-
-                    var data = new JsonDoc()
-                        .Set("amount", builder.Amount.ToNumericCurrencyString());
-
-                    var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{id}/refund", data.ToString());
-
-                    return MapResponse(response);
-                }
-                else if (builder.TransactionType == TransactionType.Reversal)
-                {
-                    string id = (builder.PaymentMethod as CreditTrackData).Value;
-
-                    var data = new JsonDoc()
-                        .Set("amount", builder.Amount.ToNumericCurrencyString());
-
-                    var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{id}/reversal", data.ToString());
-
-                    return MapResponse(response);
-                }
-            }
 
             throw new ApiException("Transaction type not implemented");
         }
 
         public Transaction ManageTransaction(ManagementBuilder builder) {
+
+            if (builder.TransactionType == TransactionType.Capture) {
+                var data = new JsonDoc()
+                    .Set("amount", builder.Amount.ToNumericCurrencyString())
+                    .Set("gratuity_amount", builder.Gratuity.ToNumericCurrencyString());
+
+                var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/capture", data.ToString());
+
+                return MapResponse(response);
+            }
+            else if (builder.TransactionType == TransactionType.Refund) {
+                var data = new JsonDoc()
+                    .Set("amount", builder.Amount.ToNumericCurrencyString());
+
+                var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/refund", data.ToString());
+
+                return MapResponse(response);
+            }
+            else if (builder.TransactionType == TransactionType.Reversal) {
+                var data = new JsonDoc()
+                    .Set("amount", builder.Amount.ToNumericCurrencyString());
+
+                var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/reversal", data.ToString());
+
+                return MapResponse(response);
+            }
             throw new NotImplementedException();
         }
 
@@ -163,6 +166,7 @@ namespace GlobalPayments.Api.Gateways {
 
             // ToDo: Map transaction values
             transaction.TransactionId = json.GetValue<string>("id");
+            transaction.BalanceAmount = json.GetValue<decimal>("amount");
             transaction.Timestamp = json.GetValue<string>("time_created");
             transaction.ResponseMessage = json.GetValue<string>("status");
             transaction.ReferenceNumber = json.GetValue<string>("reference");

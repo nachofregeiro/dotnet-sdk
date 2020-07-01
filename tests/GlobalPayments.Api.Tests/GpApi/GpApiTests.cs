@@ -6,7 +6,6 @@ namespace GlobalPayments.Api.Tests.GpApi
     [TestClass]
     public class GpApiTests {
         CreditCardData card;
-        CreditTrackData track;
 
         public GpApiTests() {
             ServicesContainer.ConfigureService(new GpApiConfig {
@@ -18,12 +17,22 @@ namespace GlobalPayments.Api.Tests.GpApi
                 Number = "4263970000005262",
                 ExpMonth = 05,
                 ExpYear = 2025,
-                Cvn = "852"
+                Cvn = "852",
             };
+        }
 
-            track = new CreditTrackData {
-                TrackData = "123456"
-            };
+        [TestMethod]
+        public void CreditAuthorization() {
+            var transaction = card.Authorize(14m)
+                .WithCurrency("USD")
+                .WithAllowDuplicates(true)
+                .Execute();
+            Assert.IsNotNull(transaction);
+
+            var capture = transaction.Capture(16m)
+                .WithGratuity(2m)
+                .Execute();
+            Assert.IsNotNull(capture);
         }
 
         [TestMethod]
@@ -31,13 +40,11 @@ namespace GlobalPayments.Api.Tests.GpApi
             var response = card.Charge(19.99m)
                 .WithCurrency("USD")
                 .Execute();
-
             Assert.IsNotNull(response);
         }
 
         [TestMethod]
-        public void CreditRefund()
-        {
+        public void CreditRefund() {
             var response = card.Refund(16m)
                 .WithCurrency("USD")
                 .WithAllowDuplicates(true)
@@ -46,38 +53,29 @@ namespace GlobalPayments.Api.Tests.GpApi
         }
 
         [TestMethod]
-        public void CreditRefundTransaction()
-        {
-            var response = track.Refund(16m)
+        public void CreditRefundTransaction() {
+            var transaction = card.Charge(10.95m)
                 .WithCurrency("USD")
                 .WithAllowDuplicates(true)
                 .Execute();
-            Assert.IsNotNull(response);
-        }
+            Assert.IsNotNull(transaction);
 
-        [TestMethod]
-        public void CreditReverseTransaction()
-        {
-            var response = track.Reverse(15m)
-                .WithTransactionId("123456")
-                .WithAllowDuplicates(true)
+            var response = transaction.Refund(10.95m)
                 .Execute();
             Assert.IsNotNull(response);
         }
 
         [TestMethod]
-        public void CreditAuthorization()
-        {
-            //var authorize = card.Authorize(14m)
-            //    .WithCurrency("USD")
-            //    .WithAllowDuplicates(true)
-            //    .Execute();
-            //Assert.IsNotNull(authorize);
+        public void CreditReverseTransaction() {
+            var transaction = card.Charge(12.99m)
+                .WithCurrency("USD")
+                .WithAllowDuplicates(true)
+                .Execute();
+            Assert.IsNotNull(transaction);
 
-            //var capture = authorize.Capture(16m)
-            //    .WithGratuity(2m)
-            //    .Execute();
-            //Assert.IsNotNull(capture);
+            var response = transaction.Reverse(12.99m)
+                .Execute();
+            Assert.IsNotNull(response);
         }
     }
 }
