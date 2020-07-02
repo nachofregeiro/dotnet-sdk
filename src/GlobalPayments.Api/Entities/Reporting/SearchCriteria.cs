@@ -13,6 +13,7 @@ namespace GlobalPayments.Api.Entities {
         BatchId,
         BatchSequenceNumber,
         BuyerEmailAddress,
+        CardBrand,
         CardHolderFirstName,
         CardHolderLastName,
         CardHolderPoNumber,
@@ -40,6 +41,7 @@ namespace GlobalPayments.Api.Entities {
         ScheduleId,
         SiteTrace,
         StartDate,
+        TransactionStatus,
         UniqueDeviceId,
         Username,
     }
@@ -84,6 +86,8 @@ namespace GlobalPayments.Api.Entities {
         internal string BatchSequenceNumber { get; set; }
 
         internal string BuyerEmailAddress { get; set; }
+
+        internal string CardBrand { get; set; }
 
         internal string CardHolderFirstName { get; set; }
 
@@ -168,6 +172,8 @@ namespace GlobalPayments.Api.Entities {
         internal DateTime? StartDate { get; set; }
 
         internal DateTime? StartDepositDate { get; set; }
+
+        internal string TransactionStatus { get; set; }
 
         internal string UniqueDeviceId { get; set; }
 
