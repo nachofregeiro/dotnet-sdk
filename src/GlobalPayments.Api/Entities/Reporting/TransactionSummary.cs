@@ -246,5 +246,7 @@ namespace GlobalPayments.Api.Entities {
         public decimal? AmountDue { get; set; }
 
         public bool HostTimeout { get; set; }
+
+        public string Country { get; set; }
     }
 }

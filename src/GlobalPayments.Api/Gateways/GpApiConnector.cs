@@ -179,13 +179,11 @@ namespace GlobalPayments.Api.Gateways {
             return transaction;
         }
 
-        public T ProcessReport<T>(ReportBuilder<T> builder) where T : class
-        {
+        public T ProcessReport<T>(ReportBuilder<T> builder) where T : class {
             string reportUrl = "/ucp/transactions";
             Dictionary<string, string> queryStringParams = new Dictionary<string, string>();
 
-            if (builder is TransactionReportBuilder<T>)
-            {
+            if (builder is TransactionReportBuilder<T>) {
                 var trb = builder as TransactionReportBuilder<T>;
 
                 if (builder.ReportType == ReportType.TransactionDetail) {
@@ -210,18 +208,21 @@ namespace GlobalPayments.Api.Gateways {
                     if (!string.IsNullOrEmpty(trb.OrderDirection) && orderOptions.Contains(trb.OrderDirection.ToUpper())) {
                         queryStringParams.Add("ORDER", trb.OrderDirection.ToUpper());
                     }
-                    //ACCOUNT_NAME
+                    //ACCOUNT_NAME ??
                     //ID
                     if (!string.IsNullOrEmpty(trb.TransactionId)) {
                         queryStringParams.Add("ID", trb.TransactionId);
                     }
                     //BRAND
-                    //MASKED_NUMBER_FIRST6LAST4
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.CardBrand)) {
+                        queryStringParams.Add("BRAND", trb.SearchBuilder.CardBrand);
+                    }
+                    //MASKED_NUMBER_FIRST6LAST4 ??
                     if (!string.IsNullOrEmpty(trb.SearchBuilder.CardNumberFirstSix) && !string.IsNullOrEmpty(trb.SearchBuilder.CardNumberLastFour)) {
                         //queryStringParams.Add("MASKED_NUMBER_FIRST6LAST4", trb.SearchBuilder.CardNumberFirstSix);
                     }
-                    //ARN
-                    //BRAND_REFERENCE
+                    //ARN ??
+                    //BRAND_REFERENCE ??
                     //AUTHCODE
                     if (!string.IsNullOrEmpty(trb.SearchBuilder.AuthCode)) {
                         queryStringParams.Add("AUTHCODE", trb.SearchBuilder.AuthCode);
@@ -231,6 +232,10 @@ namespace GlobalPayments.Api.Gateways {
                         queryStringParams.Add("REFERENCE", trb.SearchBuilder.ReferenceNumber);
                     }
                     //STATUS
+                    string[] statusOptions = new string[] { "INITIATED", "AUTHENTICATED", "PENDING", "DECLINED", "PREAUTHORIZED", "CAPTURED", "BATCHED", "REVERSED", "FUNDED", "REJECTED" };
+                    if (!string.IsNullOrEmpty(trb.SearchBuilder.TransactionStatus) && statusOptions.Contains(trb.SearchBuilder.TransactionStatus.ToUpper())) {
+                        queryStringParams.Add("STATUS", trb.SearchBuilder.TransactionStatus);
+                    }
                     //FROM_TIME_CREATED
                     queryStringParams.Add("FROM_TIME_CREATED", (trb.StartDate ?? DateTime.UtcNow).ToString("yyyy-MM-dd"));
                     //TO_TIME_CREATED 
@@ -261,7 +266,7 @@ namespace GlobalPayments.Api.Gateways {
                     if (!string.IsNullOrEmpty(trb.SearchBuilder.MerchantId)) {
                         queryStringParams.Add("SYSTEM.MID", trb.SearchBuilder.MerchantId);
                     }
-                    //SYSTEM.HIERARCHY
+                    //SYSTEM.HIERARCHY ??
                 }
             }
 
@@ -292,7 +297,7 @@ namespace GlobalPayments.Api.Gateways {
                     ReferenceNumber = doc.GetValue<string>("reference"),
                     // ?? = doc.GetValue<DateTime>("time_created_reference"),
                     BatchSequenceNumber = doc.GetValue<string>("batch_id"),
-                    // ?? = doc.GetValue<string>("country"),
+                    Country = doc.GetValue<string>("country"),
                     // ?? = doc.GetValue<string>("action_create_id"),
                     OriginalTransactionId = doc.GetValue<string>("parent_resource_id"),
 
