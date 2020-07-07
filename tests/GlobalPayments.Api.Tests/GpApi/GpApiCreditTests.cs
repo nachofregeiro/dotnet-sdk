@@ -4,10 +4,10 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace GlobalPayments.Api.Tests.GpApi
 {
     [TestClass]
-    public class GpApiTests {
+    public class GpApiCreditTests {
         CreditCardData card;
 
-        public GpApiTests() {
+        public GpApiCreditTests() {
             ServicesContainer.ConfigureService(new GpApiConfig {
                 AppId = "Uyq6PzRbkorv2D4RQGlldEtunEeGNZll",
                 AppKey = "QDsW1ETQKHX6Y4TA",
@@ -61,6 +61,7 @@ namespace GlobalPayments.Api.Tests.GpApi
             Assert.IsNotNull(transaction);
 
             var response = transaction.Refund(10.95m)
+                .WithCurrency("USD")
                 .Execute();
             Assert.IsNotNull(response);
         }

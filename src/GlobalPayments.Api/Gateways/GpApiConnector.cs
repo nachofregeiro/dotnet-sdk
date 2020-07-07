@@ -75,18 +75,10 @@ namespace GlobalPayments.Api.Gateways {
 
         public Transaction ProcessAuthorization(AuthorizationBuilder builder)
         {
-            if (builder.PaymentMethod is ICardData)
-            {
-                if (builder.TransactionType != TransactionType.Auth
-                    && builder.TransactionType != TransactionType.Sale 
-                    && builder.TransactionType != TransactionType.Refund)
-                {
-                    throw new ApiException("Transaction type not supported for this payment method");
-                }
+            var paymentMethod = new JsonDoc()
+                    .Set("entry_mode", "ECOM"); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE]
 
-                var paymentMethod = new JsonDoc()
-                    .Set("entry_mode", "MANUAL"); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE]
-
+            if (builder.PaymentMethod is ICardData) {
                 var cardData = builder.PaymentMethod as ICardData;
 
                 string cvvIndicator;
@@ -115,23 +107,7 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("avs_postal_code", "50001")
                     //.Set("funding", "") // [DEBIT, CREDIT]
                     .Set("authcode", builder.OfflineAuthCode);
-                    //.Set("brand_reference", "")
-
-                if (builder.PaymentMethod is CreditCardData) {
-                    paymentMethod.Set("first_name", (builder.PaymentMethod as CreditCardData).CardHolderName);
-                    //paymentMethod.Set("last_name", "");
-
-                    var secureEcom = (builder.PaymentMethod as CreditCardData).ThreeDSecure;
-                    if (secureEcom != null) {
-                        var authentication = new JsonDoc()
-                            .Set("xid", secureEcom.Xid)
-                            .Set("cavv", secureEcom.Cavv)
-                            .Set("eci", secureEcom.Eci);
-                            //.Set("mac", ""); //A message authentication code submitted to confirm integrity of the request.
-
-                        paymentMethod.Set("authentication", authentication);
-                    }
-                }
+                //.Set("brand_reference", "")
 
                 // pin block
                 if (builder.PaymentMethod is IPinProtected) {
@@ -140,66 +116,84 @@ namespace GlobalPayments.Api.Gateways {
                     }
                 }
 
-                // encryption
-                if (builder.PaymentMethod is IEncryptable) {
-                    var encryptionData = ((IEncryptable)builder.PaymentMethod).EncryptionData;
+                paymentMethod.Set("card", card);
+            }
 
-                    if (encryptionData != null) {
-                        var encryption = new JsonDoc()
-                            .Set("version", encryptionData.Version);
+            // authentication
+            if (builder.PaymentMethod is CreditCardData) {
+                paymentMethod.Set("first_name", (builder.PaymentMethod as CreditCardData).CardHolderName);
+                //paymentMethod.Set("last_name", "");
 
-                        if (!string.IsNullOrEmpty(encryptionData.KTB)) {
-                            encryption.Set("method", "KTB");
-                            encryption.Set("info", encryptionData.KTB);
-                        }
-                        else {
-                            encryption.Set("method", "KSN");
-                            encryption.Set("info", encryptionData.KSN);
-                        }
+                var secureEcom = (builder.PaymentMethod as CreditCardData).ThreeDSecure;
+                if (secureEcom != null) {
+                    var authentication = new JsonDoc()
+                        .Set("xid", secureEcom.Xid)
+                        .Set("cavv", secureEcom.Cavv)
+                        .Set("eci", secureEcom.Eci);
+                    //.Set("mac", ""); //A message authentication code submitted to confirm integrity of the request.
 
+                    paymentMethod.Set("authentication", authentication);
+                }
+            }
+
+            // encryption
+            if (builder.PaymentMethod is IEncryptable) {
+                var encryptionData = ((IEncryptable)builder.PaymentMethod).EncryptionData;
+
+                if (encryptionData != null) {
+                    var encryption = new JsonDoc()
+                        .Set("version", encryptionData.Version);
+
+                    if (!string.IsNullOrEmpty(encryptionData.KTB)) {
+                        encryption.Set("method", "KTB");
+                        encryption.Set("info", encryptionData.KTB);
+                    }
+                    else if (!string.IsNullOrEmpty(encryptionData.KSN))
+                    {
+                        encryption.Set("method", "KSN");
+                        encryption.Set("info", encryptionData.KSN);
+                    }
+
+                    if (encryption.Has("info")) {
                         paymentMethod.Set("encryption", encryption);
                     }
                 }
-
-                paymentMethod.Set("card", card);
-
-                string captureMode = "AUTO";
-                if (builder.MultiCapture) {
-                    captureMode = "MULTIPLE";
-                }
-                else if (builder.TransactionType == TransactionType.Auth) {
-                    captureMode = "LATER";
-                }
-
-                var data = new JsonDoc()
-                    .Set("account_name", "Transaction_Processing")
-                    .Set("type", builder.TransactionType == TransactionType.Sale ? "SALE" : "REFUND") // [SALE, REFUND]
-                    .Set("channel", "CNP") // [CP, CNP] card present, card not present, check if add a config value
-                    .Set("capture_mode", captureMode) // [AUTO, LATER, MULTIPLE]
-                    //.Set("remaining_capture_count", "") //Pending Russell
-                    .Set("authorization_mode", builder.AllowPartialAuth ? "PARTIAL" : "WHOLE") // [PARTIAL, WHOLE]
-                    .Set("amount", builder.Amount.ToNumericCurrencyString())
-                    .Set("currency", builder.Currency)
-                    .Set("reference", builder.ClientTransactionId)
-                    .Set("description", builder.Description)
-                    .Set("order_reference", builder.OrderId)
-                    //.Set("initiator", "") // [PAYER, MERCHANT] //default to PAYER
-                    .Set("gratuity_amount", builder.Gratuity.ToNumericCurrencyString())
-                    .Set("cashback_amount", builder.CashBackAmount.ToNumericCurrencyString())
-                    .Set("surcharge_amount", builder.SurchargeAmount.ToNumericCurrencyString())
-                    .Set("convenience_amount", builder.ConvenienceAmount.ToNumericCurrencyString())
-                    .Set("country", builder.BillingAddress?.Country)
-                    //.Set("language", "") //Todo: add to the config
-                    .Set("ip_address", builder.CustomerIpAddress)
-                    //.Set("site_reference", "") //
-                    .Set("payment_method", paymentMethod);
-                
-                var response = DoTransaction(HttpMethod.Post, "/ucp/transactions", data.ToString());
-
-                return MapResponse(response);
             }
 
-            throw new ApiException("Transaction type not implemented");
+            string captureMode = "AUTO";
+            if (builder.MultiCapture) {
+                captureMode = "MULTIPLE";
+            }
+            else if (builder.TransactionType == TransactionType.Auth) {
+                captureMode = "LATER";
+            }
+
+            var data = new JsonDoc()
+                .Set("account_name", "Transaction_Processing")
+                .Set("type", builder.TransactionType == TransactionType.Sale ? "SALE" : "REFUND") // [SALE, REFUND]
+                .Set("channel", "CNP") // [CP, CNP] card present, card not present, check if add a config value
+                .Set("capture_mode", captureMode) // [AUTO, LATER, MULTIPLE]
+                //.Set("remaining_capture_count", "") //Pending Russell
+                .Set("authorization_mode", builder.AllowPartialAuth ? "PARTIAL" : "WHOLE") // [PARTIAL, WHOLE]
+                .Set("amount", builder.Amount.ToNumericCurrencyString())
+                .Set("currency", builder.Currency)
+                .Set("reference", builder.ClientTransactionId ?? Guid.NewGuid().ToString())
+                .Set("description", builder.Description)
+                .Set("order_reference", builder.OrderId)
+                //.Set("initiator", "") // [PAYER, MERCHANT] //default to PAYER
+                .Set("gratuity_amount", builder.Gratuity.ToNumericCurrencyString())
+                .Set("cashback_amount", builder.CashBackAmount.ToNumericCurrencyString())
+                .Set("surcharge_amount", builder.SurchargeAmount.ToNumericCurrencyString())
+                .Set("convenience_amount", builder.ConvenienceAmount.ToNumericCurrencyString())
+                .Set("country", builder.BillingAddress?.Country ?? "US")
+                //.Set("language", "") //Todo: add to the config
+                .Set("ip_address", builder.CustomerIpAddress)
+                //.Set("site_reference", "") //
+                .Set("payment_method", paymentMethod);
+
+            var response = DoTransaction(HttpMethod.Post, "/ucp/transactions", data.ToString());
+
+            return MapResponse(response);
         }
 
         public Transaction ManageTransaction(ManagementBuilder builder) {
