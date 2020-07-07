@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Linq;
+using System.Net;
 
 namespace GlobalPayments.Api.Gateways {
     internal class GpApiConnector : RestGateway, IPaymentGateway, IReportingService {
@@ -55,6 +56,21 @@ namespace GlobalPayments.Api.Gateways {
                 SignIn();
             }
             return base.DoTransaction(verb, endpoint, data, queryStringParams);
+        }
+
+        protected override string HandleResponse(GatewayResponse response) {
+            if (response.StatusCode != HttpStatusCode.OK && response.StatusCode != HttpStatusCode.NoContent) {
+                var parsed = JsonDoc.Parse(response.RawResponse);
+                if (parsed.Has("error_code")) {
+                    string errorCode = parsed.GetValue<string>("error_code");
+                    string detailedErrorCode = parsed.GetValue<string>("detailed_error_code");
+                    string detailedErrorDescription = parsed.GetValue<string>("detailed_error_description");
+                    
+                    throw new GatewayException($"Status Code: {response.StatusCode} - Error Code: {errorCode}", detailedErrorCode, detailedErrorDescription);
+                }
+                throw new GatewayException($"Status Code: {response.StatusCode}", responseMessage: response.RawResponse);
+            }
+            return response.RawResponse;
         }
 
         public Transaction ProcessAuthorization(AuthorizationBuilder builder)
@@ -172,7 +188,7 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("cashback_amount", builder.CashBackAmount.ToNumericCurrencyString())
                     .Set("surcharge_amount", builder.SurchargeAmount.ToNumericCurrencyString())
                     .Set("convenience_amount", builder.ConvenienceAmount.ToNumericCurrencyString())
-                    .Set("country", builder.BillingAddress.Country)
+                    .Set("country", builder.BillingAddress?.Country)
                     //.Set("language", "") //Todo: add to the config
                     .Set("ip_address", builder.CustomerIpAddress)
                     //.Set("site_reference", "") //
