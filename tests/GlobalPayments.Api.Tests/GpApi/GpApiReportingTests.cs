@@ -34,10 +34,11 @@ namespace GlobalPayments.Api.Tests.GpApi
         public void ReportFindTransactionsWithCriteria()
         {
             List<TransactionSummary> summary = ReportingService.FindTransactions()
-                .OrderBy("time_created")
+                .OrderBy(TransactionSortProperty.TimeCreated, SortDirection.Descending)
                 .WithPaging(1, 10)
                 .Where(SearchCriteria.StartDate, DateTime.UtcNow.AddDays(-30))
                 //.And(SearchCriteria.EndDate, DateTime.UtcNow)
+                //.And(SearchCriteria.TransactionStatus, TransactionStatus.Captured)
                 .Execute();
             Assert.IsNotNull(summary);
             Assert.IsNotNull(summary is List<TransactionSummary>);

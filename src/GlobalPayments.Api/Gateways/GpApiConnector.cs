@@ -69,12 +69,22 @@ namespace GlobalPayments.Api.Gateways {
                 }
 
                 var paymentMethod = new JsonDoc()
-                    //.Set("first_name", "")
-                    //.Set("last_name", "")
-                    .Set("entry_mode", "ECOM") // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE]
-                    .Set("id", "PMT_31087d9c-e68c-4389-9f13-39378e166ea5");
+                    .Set("entry_mode", "MANUAL"); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE]
 
                 var cardData = builder.PaymentMethod as ICardData;
+
+                string cvvIndicator;
+                switch (cardData.CvnPresenceIndicator) {
+                    case CvnPresenceIndicator.Present:
+                        cvvIndicator = "PRESENT";
+                        break;
+                    case CvnPresenceIndicator.Illegible:
+                        cvvIndicator = "ILLEGIBLE";
+                        break;
+                    default:
+                        cvvIndicator = "NOT_PRESENT";
+                        break;
+                }
 
                 var card = new JsonDoc()
                     .Set("number", cardData.Number)
@@ -83,40 +93,91 @@ namespace GlobalPayments.Api.Gateways {
                     //.Set("track", "")
                     //.Set("tag", "")
                     //.Set("chip_condition", "") // [PREV_SUCCESS, PREV_FAILED]
-                    //.Set("pin_block", "")
                     .Set("cvv", cardData.Cvn)
-                    .Set("cvv_indicator", "PRESENT") // [ILLEGIBLE, NOT_PRESENT, PRESENT]
+                    .Set("cvv_indicator", cvvIndicator) // [ILLEGIBLE, NOT_PRESENT, PRESENT]
                     .Set("avs_address", "Flat 123")
-                    .Set("avs_postal_code", "50001");
+                    .Set("avs_postal_code", "50001")
                     //.Set("funding", "") // [DEBIT, CREDIT]
-                    //.Set("authcode", "")
+                    .Set("authcode", builder.OfflineAuthCode);
                     //.Set("brand_reference", "")
 
+                if (builder.PaymentMethod is CreditCardData) {
+                    paymentMethod.Set("first_name", (builder.PaymentMethod as CreditCardData).CardHolderName);
+                    //paymentMethod.Set("last_name", "");
+
+                    var secureEcom = (builder.PaymentMethod as CreditCardData).ThreeDSecure;
+                    if (secureEcom != null) {
+                        var authentication = new JsonDoc()
+                            .Set("xid", secureEcom.Xid)
+                            .Set("cavv", secureEcom.Cavv)
+                            .Set("eci", secureEcom.Eci);
+                            //.Set("mac", ""); //A message authentication code submitted to confirm integrity of the request.
+
+                        paymentMethod.Set("authentication", authentication);
+                    }
+                }
+
+                // pin block
+                if (builder.PaymentMethod is IPinProtected) {
+                    if (!builder.TransactionType.HasFlag(TransactionType.Reversal)) {
+                        card.Set("pin_block", ((IPinProtected)builder.PaymentMethod).PinBlock);
+                    }
+                }
+
+                // encryption
+                if (builder.PaymentMethod is IEncryptable) {
+                    var encryptionData = ((IEncryptable)builder.PaymentMethod).EncryptionData;
+
+                    if (encryptionData != null) {
+                        var encryption = new JsonDoc()
+                            .Set("version", encryptionData.Version);
+
+                        if (!string.IsNullOrEmpty(encryptionData.KTB)) {
+                            encryption.Set("method", "KTB");
+                            encryption.Set("info", encryptionData.KTB);
+                        }
+                        else {
+                            encryption.Set("method", "KSN");
+                            encryption.Set("info", encryptionData.KSN);
+                        }
+
+                        paymentMethod.Set("encryption", encryption);
+                    }
+                }
+
                 paymentMethod.Set("card", card);
+
+                string captureMode = "AUTO";
+                if (builder.MultiCapture) {
+                    captureMode = "MULTIPLE";
+                }
+                else if (builder.TransactionType == TransactionType.Auth) {
+                    captureMode = "LATER";
+                }
 
                 var data = new JsonDoc()
                     .Set("account_name", "Transaction_Processing")
                     .Set("type", builder.TransactionType == TransactionType.Sale ? "SALE" : "REFUND") // [SALE, REFUND]
-                    .Set("channel", "CNP") // [CP, CNP]
-                    .Set("capture_mode", builder.TransactionType == TransactionType.Auth ? "AUTO" : "AUTO") // [AUTO, LATER, MULTIPLE]
-                    //.Set("remaining_capture_count", "")
-                    //.Set("authorization_mode", "") // [PARTIAL, WHOLE]
+                    .Set("channel", "CNP") // [CP, CNP] card present, card not present, check if add a config value
+                    .Set("capture_mode", captureMode) // [AUTO, LATER, MULTIPLE]
+                    //.Set("remaining_capture_count", "") //Pending Russell
+                    .Set("authorization_mode", builder.AllowPartialAuth ? "PARTIAL" : "WHOLE") // [PARTIAL, WHOLE]
                     .Set("amount", builder.Amount.ToNumericCurrencyString())
                     .Set("currency", builder.Currency)
-                    .Set("reference", Guid.NewGuid())
-                    //.Set("description", "")
-                    //.Set("order_reference", "")
-                    //.Set("initiator", "") // [PAYER, MERCHANT]
+                    .Set("reference", builder.ClientTransactionId)
+                    .Set("description", builder.Description)
+                    .Set("order_reference", builder.OrderId)
+                    //.Set("initiator", "") // [PAYER, MERCHANT] //default to PAYER
                     .Set("gratuity_amount", builder.Gratuity.ToNumericCurrencyString())
                     .Set("cashback_amount", builder.CashBackAmount.ToNumericCurrencyString())
-                    //.Set("surcharge_amount", "")
+                    .Set("surcharge_amount", builder.SurchargeAmount.ToNumericCurrencyString())
                     .Set("convenience_amount", builder.ConvenienceAmount.ToNumericCurrencyString())
-                    .Set("country", "US")
-                    //.Set("language", "")
-                    //.Set("ip_address", "")
-                    //.Set("site_reference", "")
+                    .Set("country", builder.BillingAddress.Country)
+                    //.Set("language", "") //Todo: add to the config
+                    .Set("ip_address", builder.CustomerIpAddress)
+                    //.Set("site_reference", "") //
                     .Set("payment_method", paymentMethod);
-
+                
                 var response = DoTransaction(HttpMethod.Post, "/ucp/transactions", data.ToString());
 
                 return MapResponse(response);
@@ -126,33 +187,22 @@ namespace GlobalPayments.Api.Gateways {
         }
 
         public Transaction ManageTransaction(ManagementBuilder builder) {
+            string response = string.Empty;
+
+            var data = new JsonDoc()
+                .Set("amount", builder.Amount.ToNumericCurrencyString());
 
             if (builder.TransactionType == TransactionType.Capture) {
-                var data = new JsonDoc()
-                    .Set("amount", builder.Amount.ToNumericCurrencyString())
-                    .Set("gratuity_amount", builder.Gratuity.ToNumericCurrencyString());
-
-                var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/capture", data.ToString());
-
-                return MapResponse(response);
+                data.Set("gratuity_amount", builder.Gratuity.ToNumericCurrencyString());
+                response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/capture", data.ToString());
             }
             else if (builder.TransactionType == TransactionType.Refund) {
-                var data = new JsonDoc()
-                    .Set("amount", builder.Amount.ToNumericCurrencyString());
-
-                var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/refund", data.ToString());
-
-                return MapResponse(response);
+                response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/refund", data.ToString());
             }
             else if (builder.TransactionType == TransactionType.Reversal) {
-                var data = new JsonDoc()
-                    .Set("amount", builder.Amount.ToNumericCurrencyString());
-
-                var response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/reversal", data.ToString());
-
-                return MapResponse(response);
+                response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/reversal", data.ToString());
             }
-            throw new NotImplementedException();
+            return MapResponse(response);
         }
 
         public string SerializeRequest(AuthorizationBuilder builder) {
@@ -160,21 +210,23 @@ namespace GlobalPayments.Api.Gateways {
         }
 
         private Transaction MapResponse(string rawResponse) {
-            JsonDoc json = JsonDoc.Parse(rawResponse);
-
             Transaction transaction = new Transaction();
 
-            // ToDo: Map transaction values
-            transaction.TransactionId = json.GetValue<string>("id");
-            transaction.BalanceAmount = json.GetValue<decimal>("amount");
-            transaction.Timestamp = json.GetValue<string>("time_created");
-            transaction.ResponseMessage = json.GetValue<string>("status");
-            transaction.ReferenceNumber = json.GetValue<string>("reference");
-            transaction.BatchSummary = new BatchSummary
-            {
-                SequenceNumber = json.GetValue<string>("batch_id")
-            };
-            transaction.ResponseCode = json.GetValue<JsonDoc>("action").GetValue<string>("result_code");
+            if (!string.IsNullOrEmpty(rawResponse)) {
+                JsonDoc json = JsonDoc.Parse(rawResponse);
+
+                // ToDo: Map transaction values
+                transaction.TransactionId = json.GetValue<string>("id");
+                transaction.BalanceAmount = json.GetValue<decimal>("amount");
+                transaction.Timestamp = json.GetValue<string>("time_created");
+                transaction.ResponseMessage = json.GetValue<string>("status");
+                transaction.ReferenceNumber = json.GetValue<string>("reference");
+                transaction.BatchSummary = new BatchSummary
+                {
+                    SequenceNumber = json.GetValue<string>("batch_id")
+                };
+                transaction.ResponseCode = json.Get("action").GetValue<string>("result_code");
+            }
 
             return transaction;
         }
@@ -183,6 +235,12 @@ namespace GlobalPayments.Api.Gateways {
             string reportUrl = "/ucp/transactions";
             Dictionary<string, string> queryStringParams = new Dictionary<string, string>();
 
+            Action<Dictionary<string, string>, string, string> addQueryStringParam = (queryParams, name, value) => {
+                if (!string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(value)) {
+                    queryParams.Add(name, value);
+                }
+            };
+
             if (builder is TransactionReportBuilder<T>) {
                 var trb = builder as TransactionReportBuilder<T>;
 
@@ -190,83 +248,28 @@ namespace GlobalPayments.Api.Gateways {
                     reportUrl += $"/{trb.TransactionId}";
                 }
                 else if (builder.ReportType == ReportType.FindTransactions) {
-                    //PAGE
-                    if (trb.Page.HasValue) {
-                        queryStringParams.Add("PAGE", trb.Page.ToString());
-                    }
-                    //PAGE_SIZE
-                    if (trb.PageSize.HasValue) {
-                        queryStringParams.Add("PAGE_SIZE", trb.PageSize.ToString());
-                    }
-                    //ORDER_BY
-                    string[] orderByOptions = new string[] { "TIME_CREATED", "STATUS", "TYPE", "DEPOSIT_ID" };
-                    if (!string.IsNullOrEmpty(trb.OrderProperty) && orderByOptions.Contains(trb.OrderProperty.ToUpper())) {
-                        queryStringParams.Add("ORDER_BY", trb.OrderProperty.ToUpper());
-                    }
-                    //ORDER
-                    string[] orderOptions = new string[] { "ASC", "DESC" };
-                    if (!string.IsNullOrEmpty(trb.OrderDirection) && orderOptions.Contains(trb.OrderDirection.ToUpper())) {
-                        queryStringParams.Add("ORDER", trb.OrderDirection.ToUpper());
-                    }
-                    //ACCOUNT_NAME ??
-                    //ID
-                    if (!string.IsNullOrEmpty(trb.TransactionId)) {
-                        queryStringParams.Add("ID", trb.TransactionId);
-                    }
-                    //BRAND
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.CardBrand)) {
-                        queryStringParams.Add("BRAND", trb.SearchBuilder.CardBrand);
-                    }
-                    //MASKED_NUMBER_FIRST6LAST4 ??
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.CardNumberFirstSix) && !string.IsNullOrEmpty(trb.SearchBuilder.CardNumberLastFour)) {
-                        //queryStringParams.Add("MASKED_NUMBER_FIRST6LAST4", trb.SearchBuilder.CardNumberFirstSix);
-                    }
-                    //ARN ??
-                    //BRAND_REFERENCE ??
-                    //AUTHCODE
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.AuthCode)) {
-                        queryStringParams.Add("AUTHCODE", trb.SearchBuilder.AuthCode);
-                    }
-                    //REFERENCE
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.ReferenceNumber)) {
-                        queryStringParams.Add("REFERENCE", trb.SearchBuilder.ReferenceNumber);
-                    }
-                    //STATUS
-                    string[] statusOptions = new string[] { "INITIATED", "AUTHENTICATED", "PENDING", "DECLINED", "PREAUTHORIZED", "CAPTURED", "BATCHED", "REVERSED", "FUNDED", "REJECTED" };
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.TransactionStatus) && statusOptions.Contains(trb.SearchBuilder.TransactionStatus.ToUpper())) {
-                        queryStringParams.Add("STATUS", trb.SearchBuilder.TransactionStatus);
-                    }
-                    //FROM_TIME_CREATED
-                    queryStringParams.Add("FROM_TIME_CREATED", (trb.StartDate ?? DateTime.UtcNow).ToString("yyyy-MM-dd"));
-                    //TO_TIME_CREATED 
-                    if (trb.EndDate.HasValue) {
-                        queryStringParams.Add("TO_TIME_CREATED", trb.EndDate.Value.ToString("yyyy-MM-dd"));
-                    }
-                    //DEPOSIT_ID
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.DepositReference)) {
-                        queryStringParams.Add("DEPOSIT_ID", trb.SearchBuilder.DepositReference);
-                    }
-                    //FROM_DEPOSIT_TIME_CREATED
-                    if (trb.SearchBuilder.StartDepositDate.HasValue) {
-                        queryStringParams.Add("FROM_DEPOSIT_TIME_CREATED", trb.SearchBuilder.StartDepositDate.Value.ToString("yyyy-MM-dd"));
-                    }
-                    //TO_DEPOSIT_TIME_CREATED
-                    if (trb.SearchBuilder.EndDepositDate.HasValue) {
-                        queryStringParams.Add("TO_DEPOSIT_TIME_CREATED", trb.SearchBuilder.EndDepositDate.Value.ToString("yyyy-MM-dd"));
-                    }
-                    //FROM_BATCH_TIME_CREATED
-                    if (trb.SearchBuilder.StartBatchDate.HasValue) {
-                        queryStringParams.Add("FROM_BATCH_TIME_CREATED", trb.SearchBuilder.StartBatchDate.Value.ToString("yyyy-MM-dd"));
-                    }
-                    //TO_BATCH_TIME_CREATED
-                    if (trb.SearchBuilder.EndBatchDate.HasValue) {
-                        queryStringParams.Add("TO_BATCH_TIME_CREATED", trb.SearchBuilder.EndBatchDate.Value.ToString("yyyy-MM-dd"));
-                    }
-                    //SYSTEM.MID
-                    if (!string.IsNullOrEmpty(trb.SearchBuilder.MerchantId)) {
-                        queryStringParams.Add("SYSTEM.MID", trb.SearchBuilder.MerchantId);
-                    }
-                    //SYSTEM.HIERARCHY ??
+                    addQueryStringParam(queryStringParams, "PAGE", trb.Page?.ToString());
+                    addQueryStringParam(queryStringParams, "PAGE_SIZE", trb.PageSize?.ToString());
+                    addQueryStringParam(queryStringParams, "ORDER_BY", EnumConverter.GetMapping(Target.GP_API, trb.OrderProperty));
+                    addQueryStringParam(queryStringParams, "ORDER", EnumConverter.GetMapping(Target.GP_API, trb.OrderDirection));
+                    addQueryStringParam(queryStringParams, "ACCOUNT_NAME", trb.SearchBuilder.AccountName);
+                    addQueryStringParam(queryStringParams, "ID", trb.TransactionId);
+                    addQueryStringParam(queryStringParams, "BRAND", trb.SearchBuilder.CardBrand);
+                    addQueryStringParam(queryStringParams, "MASKED_NUMBER_FIRST6LAST4", trb.SearchBuilder.MaskedCardNumber);
+                    addQueryStringParam(queryStringParams, "ARN", trb.SearchBuilder.AquirerReferenceNumber);
+                    addQueryStringParam(queryStringParams, "BRAND_REFERENCE", trb.SearchBuilder.BrandReference);
+                    addQueryStringParam(queryStringParams, "AUTHCODE", trb.SearchBuilder.AuthCode);
+                    addQueryStringParam(queryStringParams, "REFERENCE", trb.SearchBuilder.ReferenceNumber);
+                    addQueryStringParam(queryStringParams, "STATUS", EnumConverter.GetMapping(Target.GP_API, trb.SearchBuilder.TransactionStatus));
+                    addQueryStringParam(queryStringParams, "FROM_TIME_CREATED", (trb.StartDate ?? DateTime.UtcNow).ToString("yyyy-MM-dd"));
+                    addQueryStringParam(queryStringParams, "TO_TIME_CREATED", trb.EndDate?.ToString("yyyy-MM-dd"));
+                    addQueryStringParam(queryStringParams, "DEPOSIT_ID", trb.SearchBuilder.DepositReference);
+                    addQueryStringParam(queryStringParams, "FROM_DEPOSIT_TIME_CREATED", trb.SearchBuilder.StartDepositDate?.ToString("yyyy-MM-dd"));
+                    addQueryStringParam(queryStringParams, "TO_DEPOSIT_TIME_CREATED", trb.SearchBuilder.EndDepositDate?.ToString("yyyy-MM-dd"));
+                    addQueryStringParam(queryStringParams, "FROM_BATCH_TIME_CREATED", trb.SearchBuilder.StartBatchDate?.ToString("yyyy-MM-dd"));
+                    addQueryStringParam(queryStringParams, "TO_BATCH_TIME_CREATED", trb.SearchBuilder.EndBatchDate?.ToString("yyyy-MM-dd"));
+                    addQueryStringParam(queryStringParams, "SYSTEM.MID", trb.SearchBuilder.MerchantId);
+                    // SYSTEM.HIERARCHY ??
                 }
             }
 
@@ -281,9 +284,9 @@ namespace GlobalPayments.Api.Gateways {
             JsonDoc json = JsonDoc.Parse(rawResponse);
 
             Func<JsonDoc, TransactionSummary> mapTransactionSummary = (doc) => {
-                JsonDoc paymentMethod = doc.GetValue<JsonDoc>("payment_method");
+                JsonDoc paymentMethod = doc.Get("payment_method");
 
-                JsonDoc card = paymentMethod?.GetValue<JsonDoc>("card");
+                JsonDoc card = paymentMethod?.Get("card");
 
                 var summary = new TransactionSummary {
                     //ToDo: Map all transaction properties
@@ -301,7 +304,7 @@ namespace GlobalPayments.Api.Gateways {
                     // ?? = doc.GetValue<string>("action_create_id"),
                     OriginalTransactionId = doc.GetValue<string>("parent_resource_id"),
 
-                    //?? = paymentMethod?.GetValue<string>("message"),
+                    GatewayResponseMessage = paymentMethod?.GetValue<string>("message"),
                     EntryMode = paymentMethod?.GetValue<string>("entry_mode"),
                     //?? = paymentMethod?.GetValue<string>("name"),
 

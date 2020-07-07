@@ -6,12 +6,15 @@ using System.Reflection;
 
 namespace GlobalPayments.Api.Entities {
     public enum SearchCriteria {
+        AccountName,
         AccountNumberLastFour,
         AltPaymentStatus,
+        AquirerReferenceNumber,
         AuthCode,
         BankRoutingNumber,
         BatchId,
         BatchSequenceNumber,
+        BrandReference,
         BuyerEmailAddress,
         CardBrand,
         CardHolderFirstName,
@@ -34,6 +37,7 @@ namespace GlobalPayments.Api.Entities {
         InvoiceNumber,
         IssuerResult,
         IssuerTransactionId,
+        MaskedCardNumber,
         OneTime,
         PaymentMethodKey,
         ReferenceNumber,
@@ -69,11 +73,15 @@ namespace GlobalPayments.Api.Entities {
     public class SearchCriteriaBuilder<TResult> where TResult : class {
         private TransactionReportBuilder<TResult> _reportBuilder;
 
+        internal string AccountName { get; set; }
+
         internal string AccountNumberLastFour { get; set; }
 
         internal string AltPaymentStatus { get; set; }
 
         internal decimal? Amount { get; set; }
+
+        internal string AquirerReferenceNumber { get; set; }
 
         internal string AuthCode { get; set; }
 
@@ -84,6 +92,8 @@ namespace GlobalPayments.Api.Entities {
         internal string BatchId { get; set; }
 
         internal string BatchSequenceNumber { get; set; }
+
+        internal string BrandReference { get; set; }
 
         internal string BuyerEmailAddress { get; set; }
 
@@ -147,6 +157,8 @@ namespace GlobalPayments.Api.Entities {
 
         internal DateTime? LocalTransactionStartTime { get; set; }
 
+        internal string MaskedCardNumber { get; set; }
+
         internal string MerchantId { get; set; }
 
         internal bool? OneTime { get; set; }
@@ -173,7 +185,7 @@ namespace GlobalPayments.Api.Entities {
 
         internal DateTime? StartDepositDate { get; set; }
 
-        internal string TransactionStatus { get; set; }
+        internal TransactionStatus? TransactionStatus { get; set; }
 
         internal string UniqueDeviceId { get; set; }
 

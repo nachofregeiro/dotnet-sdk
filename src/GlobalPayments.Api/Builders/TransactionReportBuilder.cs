@@ -21,8 +21,8 @@ namespace GlobalPayments.Api.Builders {
         internal string TransactionId { get; set; }
         internal int? Page { get; set; }
         internal int? PageSize { get; set; }
-        internal string OrderProperty { get; set; }
-        internal string OrderDirection { get; set; }
+        internal TransactionSortProperty? OrderProperty { get; set; }
+        internal SortDirection? OrderDirection { get; set; }
 
 
         private SearchCriteriaBuilder<TResult> _searchBuilder;
@@ -98,7 +98,7 @@ namespace GlobalPayments.Api.Builders {
         /// <param name="orderProperty">Order by property</param>
         /// <param name="orderDirection">Order by direction</param>
         /// <returns>TResult</returns>
-        public TransactionReportBuilder<TResult> OrderBy(string orderProperty, string orderDirection = null)
+        public TransactionReportBuilder<TResult> OrderBy(TransactionSortProperty orderProperty, SortDirection orderDirection = SortDirection.Ascending)
         {
             OrderProperty = orderProperty;
             OrderDirection = orderDirection;

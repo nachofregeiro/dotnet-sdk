@@ -62,6 +62,7 @@ namespace GlobalPayments.Api.Builders {
         internal Dictionary<string, List<string[]>> SupplementaryData { get; set; }
         internal string TagData { get; set; }
         internal string Timestamp { get; set; }
+        internal decimal? SurchargeAmount { get; set; }
 
         internal bool HasEmvFallbackData {
             get {
@@ -673,6 +674,17 @@ namespace GlobalPayments.Api.Builders {
         /// <returns>AuthorizationBuilder</returns>
         public AuthorizationBuilder WithLodgingData(LodgingData value) {
             LodgingData = value;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the surcharge amount; where applicable.
+        /// </summary>       
+        /// <param name="value">The surcharge amount</param>
+        /// <returns>AuthorizationBuilder</returns>
+        public AuthorizationBuilder WithSurchargeAmount(decimal? value)
+        {
+            SurchargeAmount = value;
             return this;
         }
 
