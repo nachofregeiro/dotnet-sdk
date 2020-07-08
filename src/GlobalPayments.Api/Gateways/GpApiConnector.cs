@@ -14,6 +14,8 @@ namespace GlobalPayments.Api.Gateways {
         public string AppId { get; set; }
         public string AppKey { get; set; }
         public string Nonce { get; set; }
+        public int? SecondsToExpire { get; set; }
+        public string IntervalToExpire { get; set; }
         public Channel Channel { get; set; }
         public Language Language { get; set; }
         public string SessionToken { get; internal set; }
@@ -28,7 +30,7 @@ namespace GlobalPayments.Api.Gateways {
         }
 
         public void SignIn() {
-            var request = SessionInfo.SignIn(AppId, AppKey, Nonce);
+            var request = SessionInfo.SignIn(AppId, AppKey, Nonce, SecondsToExpire, IntervalToExpire);
 
             var response = SendAccessTokenRequest(request);
 

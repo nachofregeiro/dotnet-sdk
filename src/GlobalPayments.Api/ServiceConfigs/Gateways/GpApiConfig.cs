@@ -18,6 +18,15 @@ namespace GlobalPayments.Api
         /// </summary>
         public string Nonce { get; set; } = "transactionsapi";
         /// <summary>
+        /// The time left in seconds before the token expires
+        /// </summary>
+        public int? SecondsToExpire { get; set; }
+        /// <summary>
+        /// The time interval set for when the token will expire
+        /// [WEEK, DAY, 12_HOURS, 6_HOURS, 3_HOURS, 1_HOUR, 30_MINUTES, 10_MINUTES, 5_MINUTES]
+        /// </summary>
+        public string IntervalToExpire { get; set; }
+        /// <summary>
         /// Channel
         /// </summary>
         public Channel Channel { get; set; } = Channel.ClientNotPresent;
@@ -40,6 +49,8 @@ namespace GlobalPayments.Api
                 AppId = AppId,
                 AppKey = AppKey,
                 Nonce = Nonce,
+                SecondsToExpire = SecondsToExpire,
+                IntervalToExpire = IntervalToExpire,
                 Channel = Channel,
                 Language = Language,
                 ServiceUrl = ServiceUrl,
