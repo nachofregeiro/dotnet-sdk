@@ -36,8 +36,7 @@ namespace GlobalPayments.Api
                     ServiceUrl = ServiceEndpoints.GP_API_PRODUCTION;
             }
 
-            var gateway = new GpApiConnector
-            {
+            var gateway = new GpApiConnector {
                 AppId = AppId,
                 AppKey = AppKey,
                 Nonce = Nonce,

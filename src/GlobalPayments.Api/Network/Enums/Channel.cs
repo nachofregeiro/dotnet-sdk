@@ -3,8 +3,7 @@
 namespace GlobalPayments.Api.Entities
 {
     [MapTarget(Target.GP_API)]
-    public enum Channel
-    {
+    public enum Channel {
         [Map(Target.GP_API, "CP")]
         ClientPresent,
 
