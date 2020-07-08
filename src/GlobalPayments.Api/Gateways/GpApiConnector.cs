@@ -14,6 +14,8 @@ namespace GlobalPayments.Api.Gateways {
         public string AppId { get; set; }
         public string AppKey { get; set; }
         public string Nonce { get; set; }
+        public Channel Channel { get; set; }
+        public Language Language { get; set; }
         public string SessionToken { get; internal set; }
 
         public bool SupportsHostedPayments => throw new NotImplementedException();
@@ -130,7 +132,7 @@ namespace GlobalPayments.Api.Gateways {
                         .Set("xid", secureEcom.Xid)
                         .Set("cavv", secureEcom.Cavv)
                         .Set("eci", secureEcom.Eci);
-                    //.Set("mac", ""); //A message authentication code submitted to confirm integrity of the request.
+                        //.Set("mac", ""); //A message authentication code submitted to confirm integrity of the request.
 
                     paymentMethod.Set("authentication", authentication);
                 }
@@ -171,7 +173,7 @@ namespace GlobalPayments.Api.Gateways {
             var data = new JsonDoc()
                 .Set("account_name", "Transaction_Processing")
                 .Set("type", builder.TransactionType == TransactionType.Sale ? "SALE" : "REFUND") // [SALE, REFUND]
-                .Set("channel", "CNP") // [CP, CNP] card present, card not present, check if add a config value
+                .Set("channel", EnumConverter.GetMapping(Target.GP_API, Channel)) // [CP, CNP]
                 .Set("capture_mode", captureMode) // [AUTO, LATER, MULTIPLE]
                 //.Set("remaining_capture_count", "") //Pending Russell
                 .Set("authorization_mode", builder.AllowPartialAuth ? "PARTIAL" : "WHOLE") // [PARTIAL, WHOLE]
@@ -186,7 +188,7 @@ namespace GlobalPayments.Api.Gateways {
                 .Set("surcharge_amount", builder.SurchargeAmount.ToNumericCurrencyString())
                 .Set("convenience_amount", builder.ConvenienceAmount.ToNumericCurrencyString())
                 .Set("country", builder.BillingAddress?.Country ?? "US")
-                //.Set("language", "") //Todo: add to the config
+                //.Set("language", EnumConverter.GetMapping(Target.GP_API, Language))
                 .Set("ip_address", builder.CustomerIpAddress)
                 //.Set("site_reference", "") //
                 .Set("payment_method", paymentMethod);
@@ -304,7 +306,7 @@ namespace GlobalPayments.Api.Gateways {
                     TransactionDate = doc.GetValue<DateTime>("time_created"),
                     TransactionStatus = doc.GetValue<string>("status"),
                     TransactionType = doc.GetValue<string>("type"),
-                    // ?? = doc.GetValue<string>("channel"),
+                    Channel = doc.GetValue<string>("channel"),
                     Amount = doc.GetValue<decimal>("amount"),
                     Currency = doc.GetValue<string>("currency"),
                     ReferenceNumber = doc.GetValue<string>("reference"),

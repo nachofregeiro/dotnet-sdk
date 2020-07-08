@@ -1,4 +1,5 @@
-﻿using GlobalPayments.Api.PaymentMethods;
+﻿using GlobalPayments.Api.Entities;
+using GlobalPayments.Api.PaymentMethods;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GlobalPayments.Api.Tests.GpApi
@@ -11,6 +12,7 @@ namespace GlobalPayments.Api.Tests.GpApi
             ServicesContainer.ConfigureService(new GpApiConfig {
                 AppId = "Uyq6PzRbkorv2D4RQGlldEtunEeGNZll",
                 AppKey = "QDsW1ETQKHX6Y4TA",
+                Channel = Channel.ClientNotPresent,
             });
 
             card = new CreditCardData {

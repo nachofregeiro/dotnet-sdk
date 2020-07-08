@@ -52,6 +52,8 @@ namespace GlobalPayments.Api.Entities {
 
         public string CavvResponseCode { get; set; }
 
+        public string Channel { get; set; }
+
         public CheckData CheckData { get; set; }
 
         public string ClerkId { get; set; }
