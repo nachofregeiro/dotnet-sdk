@@ -28,14 +28,14 @@ namespace GlobalPayments.Api.Entities.GpApi {
             }
         }
 
-        internal static GpApiRequest SignIn(string appId, string appKey, string nonce, int? secondsToExpire = null, string intervalToExpire = null) {
+        internal static GpApiRequest SignIn(string appId, string appKey, string nonce, int? secondsToExpire = null, IntervalToExpire? intervalToExpire = null) {
             var request = new JsonDoc()
                 .Set("app_id", appId)
                 .Set("nonce", nonce)
                 .Set("grant_type", "client_credentials")
                 .Set("secret", GenerateSecret(nonce, appKey))
                 .Set("seconds_to_expire", secondsToExpire)
-                .Set("interval_to_expire", intervalToExpire);
+                .Set("interval_to_expire", EnumConverter.GetMapping(Target.GP_API, intervalToExpire));
 
             return new GpApiRequest {
                 Endpoint = "/ucp/accesstoken",

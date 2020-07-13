@@ -1,10 +1,8 @@
 ﻿using GlobalPayments.Api.Utils;
 
-namespace GlobalPayments.Api.Entities
-{
+namespace GlobalPayments.Api.Entities {
     [MapTarget(Target.GP_API)]
-    public enum TransactionSortProperty
-    {
+    public enum TransactionSortProperty {
         [Map(Target.GP_API, "TIME_CREATED")]
         TimeCreated,
 

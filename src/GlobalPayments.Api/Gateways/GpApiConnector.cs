@@ -15,7 +15,7 @@ namespace GlobalPayments.Api.Gateways
         public string AppKey { get; set; }
         public string Nonce { get; set; }
         public int? SecondsToExpire { get; set; }
-        public string IntervalToExpire { get; set; }
+        public IntervalToExpire? IntervalToExpire { get; set; }
         public Channel Channel { get; set; }
         public Language Language { get; set; }
         public string SessionToken { get; internal set; }

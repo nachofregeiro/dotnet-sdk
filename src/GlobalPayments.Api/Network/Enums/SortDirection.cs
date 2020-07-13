@@ -1,10 +1,8 @@
 ﻿using GlobalPayments.Api.Utils;
 
-namespace GlobalPayments.Api.Entities
-{
+namespace GlobalPayments.Api.Entities {
     [MapTarget(Target.GP_API)]
-    public enum SortDirection
-    {
+    public enum SortDirection {
         [Map(Target.GP_API, "ASC")]
         Ascending,
 
