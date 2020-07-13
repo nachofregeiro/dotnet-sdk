@@ -174,7 +174,7 @@ namespace GlobalPayments.Api.Gateways {
 
             var data = new JsonDoc()
                 .Set("account_name", "Transaction_Processing")
-                .Set("type", builder.TransactionType == TransactionType.Sale ? "SALE" : "REFUND") // [SALE, REFUND]
+                .Set("type", builder.TransactionType == TransactionType.Refund ? "REFUND" : "SALE") // [SALE, REFUND]
                 .Set("channel", EnumConverter.GetMapping(Target.GP_API, Channel)) // [CP, CNP]
                 .Set("capture_mode", captureMode) // [AUTO, LATER, MULTIPLE]
                 //.Set("remaining_capture_count", "") //Pending Russell
