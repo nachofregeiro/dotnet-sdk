@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GlobalPayments.Api.Utils;
+using System;
 
 namespace GlobalPayments.Api.Entities {
     internal enum AliasAction {
@@ -265,16 +266,19 @@ namespace GlobalPayments.Api.Entities {
         /// <summary>
         /// Indicates CVN was present.
         /// </summary>
+        [Map(Target.GP_API, "PRESENT")]
         Present = 1,
 
         /// <summary>
         /// Indicates CVN was present but illegible.
         /// </summary>
+        [Map(Target.GP_API, "ILLEGIBLE")]
         Illegible,
 
         /// <summary>
         /// Indicates CVN was not present.
         /// </summary>
+        [Map(Target.GP_API, "NOT_PRESENT")]
         NotOnCard,
 
         /// <summary>

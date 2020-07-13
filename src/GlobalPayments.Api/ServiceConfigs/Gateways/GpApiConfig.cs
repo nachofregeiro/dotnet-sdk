@@ -23,13 +23,13 @@ namespace GlobalPayments.Api
         public int? SecondsToExpire { get; set; }
         /// <summary>
         /// The time interval set for when the token will expire
-        /// [WEEK, DAY, 12_HOURS, 6_HOURS, 3_HOURS, 1_HOUR, 30_MINUTES, 10_MINUTES, 5_MINUTES]
+        /// [WEEK, DAY, 12_HOURS, 6_HOURS, 3_HOURS, 1_HOUR, 30_MINUTES, 10_MINUTES, 5_MINUTES] //Todo: Add enum
         /// </summary>
         public string IntervalToExpire { get; set; }
         /// <summary>
         /// Channel
         /// </summary>
-        public Channel Channel { get; set; } = Channel.ClientNotPresent;
+        public Channel Channel { get; set; } = Channel.CardNotPresent;
         /// <summary>
         /// Language
         /// </summary>

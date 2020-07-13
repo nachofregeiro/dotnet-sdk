@@ -6,10 +6,10 @@ using GlobalPayments.Api.Utils;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Linq;
 using System.Net;
 
-namespace GlobalPayments.Api.Gateways {
+namespace GlobalPayments.Api.Gateways
+{
     internal class GpApiConnector : RestGateway, IPaymentGateway, IReportingService {
         public string AppId { get; set; }
         public string AppKey { get; set; }
@@ -53,10 +53,8 @@ namespace GlobalPayments.Api.Gateways {
             return Activator.CreateInstance(typeof(GpApiTokenResponse), new object[] { response }) as GpApiTokenResponse;
         }
 
-        public override string DoTransaction(HttpMethod verb, string endpoint, string data = null, Dictionary<string, string> queryStringParams = null)
-        {
-            if (string.IsNullOrEmpty(SessionToken))
-            {
+        public override string DoTransaction(HttpMethod verb, string endpoint, string data = null, Dictionary<string, string> queryStringParams = null) {
+            if (string.IsNullOrEmpty(SessionToken)) {
                 SignIn();
             }
             return base.DoTransaction(verb, endpoint, data, queryStringParams);
@@ -77,56 +75,59 @@ namespace GlobalPayments.Api.Gateways {
             return response.RawResponse;
         }
 
-        public Transaction ProcessAuthorization(AuthorizationBuilder builder)
-        {
+        public Transaction ProcessAuthorization(AuthorizationBuilder builder) {
             var paymentMethod = new JsonDoc()
-                    .Set("entry_mode", "ECOM"); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE]
+                .Set("entry_mode", "ECOM"); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE] //Todo: set field properly
 
             if (builder.PaymentMethod is ICardData) {
                 var cardData = builder.PaymentMethod as ICardData;
-
-                string cvvIndicator;
-                switch (cardData.CvnPresenceIndicator) {
-                    case CvnPresenceIndicator.Present:
-                        cvvIndicator = "PRESENT";
-                        break;
-                    case CvnPresenceIndicator.Illegible:
-                        cvvIndicator = "ILLEGIBLE";
-                        break;
-                    default:
-                        cvvIndicator = "NOT_PRESENT";
-                        break;
-                }
 
                 var card = new JsonDoc()
                     .Set("number", cardData.Number)
                     .Set("expiry_month", cardData.ExpMonth.HasValue ? cardData.ExpMonth.ToString().PadLeft(2, '0') : string.Empty)
                     .Set("expiry_year", cardData.ExpYear.HasValue ? cardData.ExpYear.ToString().PadLeft(4, '0').Substring(2, 2) : string.Empty)
                     //.Set("track", "")
-                    //.Set("tag", "")
-                    //.Set("chip_condition", "") // [PREV_SUCCESS, PREV_FAILED]
+                    .Set("tag", builder.TagData)
+                    .Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)) // [PREV_SUCCESS, PREV_FAILED]
                     .Set("cvv", cardData.Cvn)
-                    .Set("cvv_indicator", cvvIndicator) // [ILLEGIBLE, NOT_PRESENT, PRESENT]
+                    .Set("cvv_indicator", EnumConverter.GetMapping(Target.GP_API, cardData.CvnPresenceIndicator)) // [ILLEGIBLE, NOT_PRESENT, PRESENT]
                     .Set("avs_address", "Flat 123")
                     .Set("avs_postal_code", "50001")
-                    //.Set("funding", "") // [DEBIT, CREDIT]
+                    .Set("funding", builder.PaymentMethod?.PaymentMethodType == PaymentMethodType.Debit ? "DEBIT" : "CREDIT") // [DEBIT, CREDIT]
                     .Set("authcode", builder.OfflineAuthCode);
-                //.Set("brand_reference", "")
+                    //.Set("brand_reference", "")
 
-                // pin block
-                if (builder.PaymentMethod is IPinProtected) {
-                    if (!builder.TransactionType.HasFlag(TransactionType.Reversal)) {
-                        card.Set("pin_block", ((IPinProtected)builder.PaymentMethod).PinBlock);
-                    }
-                }
+                paymentMethod.Set("card", card);
+            }
+            else if (builder.PaymentMethod is ITrackData) {
+                var track = builder.PaymentMethod as ITrackData;
+                
+                var card = new JsonDoc()
+                    .Set("number", track.Pan)
+                    .Set("expiry_month", track.Expiry?.Substring(2, 2))
+                    .Set("expiry_year", track.Expiry?.Substring(0, 2))
+                    .Set("track", track.TrackData)
+                    .Set("tag", builder.TagData)
+                    .Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)) // [PREV_SUCCESS, PREV_FAILED]
+                    //.Set("cvv", cardData.Cvn)
+                    //.Set("cvv_indicator", "") // [ILLEGIBLE, NOT_PRESENT, PRESENT]
+                    .Set("avs_address", "Flat 123")
+                    .Set("avs_postal_code", "50001")
+                    .Set("funding", builder.PaymentMethod?.PaymentMethodType == PaymentMethodType.Debit ? "DEBIT" : "CREDIT") // [DEBIT, CREDIT]
+                    .Set("authcode", builder.OfflineAuthCode);
+                    //.Set("brand_reference", "")
 
                 paymentMethod.Set("card", card);
             }
 
+            // pin block
+            if (builder.PaymentMethod is IPinProtected) {
+                paymentMethod.Get("card")?.Set("pin_block", ((IPinProtected)builder.PaymentMethod).PinBlock);
+            }
+
             // authentication
             if (builder.PaymentMethod is CreditCardData) {
-                paymentMethod.Set("first_name", (builder.PaymentMethod as CreditCardData).CardHolderName);
-                //paymentMethod.Set("last_name", "");
+                paymentMethod.Set("name", (builder.PaymentMethod as CreditCardData).CardHolderName);
 
                 var secureEcom = (builder.PaymentMethod as CreditCardData).ThreeDSecure;
                 if (secureEcom != null) {
@@ -152,8 +153,7 @@ namespace GlobalPayments.Api.Gateways {
                         encryption.Set("method", "KTB");
                         encryption.Set("info", encryptionData.KTB);
                     }
-                    else if (!string.IsNullOrEmpty(encryptionData.KSN))
-                    {
+                    else if (!string.IsNullOrEmpty(encryptionData.KSN)) {
                         encryption.Set("method", "KSN");
                         encryption.Set("info", encryptionData.KSN);
                     }
@@ -283,7 +283,7 @@ namespace GlobalPayments.Api.Gateways {
                     addQueryStringParam(queryStringParams, "FROM_BATCH_TIME_CREATED", trb.SearchBuilder.StartBatchDate?.ToString("yyyy-MM-dd"));
                     addQueryStringParam(queryStringParams, "TO_BATCH_TIME_CREATED", trb.SearchBuilder.EndBatchDate?.ToString("yyyy-MM-dd"));
                     addQueryStringParam(queryStringParams, "SYSTEM.MID", trb.SearchBuilder.MerchantId);
-                    // SYSTEM.HIERARCHY ??
+                    addQueryStringParam(queryStringParams, "SYSTEM.HIERARCHY", trb.SearchBuilder.SystemHierarchy);
                 }
             }
 

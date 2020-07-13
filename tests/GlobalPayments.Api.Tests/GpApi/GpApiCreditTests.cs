@@ -12,7 +12,7 @@ namespace GlobalPayments.Api.Tests.GpApi
             ServicesContainer.ConfigureService(new GpApiConfig {
                 AppId = "Uyq6PzRbkorv2D4RQGlldEtunEeGNZll",
                 AppKey = "QDsW1ETQKHX6Y4TA",
-                Channel = Channel.ClientNotPresent,
+                Channel = Channel.CardNotPresent,
             });
 
             card = new CreditCardData {

@@ -67,6 +67,7 @@ namespace GlobalPayments.Api.Entities {
         OrderId, // Data Services
         StartBatchDate, // Data Services
         StartDepositDate, // Data Services
+        SystemHierarchy, // Data Services
         Timezone // Data Services
     }
 
@@ -184,6 +185,8 @@ namespace GlobalPayments.Api.Entities {
         internal DateTime? StartDate { get; set; }
 
         internal DateTime? StartDepositDate { get; set; }
+
+        internal string SystemHierarchy { get; set; }
 
         internal TransactionStatus? TransactionStatus { get; set; }
 
