@@ -8,8 +8,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Net;
 
-namespace GlobalPayments.Api.Gateways
-{
+namespace GlobalPayments.Api.Gateways {
     internal class GpApiConnector : RestGateway, IPaymentGateway, IReportingService {
         public string AppId { get; set; }
         public string AppKey { get; set; }
@@ -68,7 +67,7 @@ namespace GlobalPayments.Api.Gateways
                     string detailedErrorCode = parsed.GetValue<string>("detailed_error_code");
                     string detailedErrorDescription = parsed.GetValue<string>("detailed_error_description");
                     
-                    throw new GatewayException($"Status Code: {response.StatusCode} - Error Code: {errorCode}", detailedErrorCode, detailedErrorDescription);
+                    throw new GatewayException($"Status Code: {response.StatusCode} - {detailedErrorDescription}", errorCode, detailedErrorCode);
                 }
                 throw new GatewayException($"Status Code: {response.StatusCode}", responseMessage: response.RawResponse);
             }
