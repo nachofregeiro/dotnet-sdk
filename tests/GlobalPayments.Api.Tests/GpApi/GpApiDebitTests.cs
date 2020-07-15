@@ -1,11 +1,10 @@
 ﻿using GlobalPayments.Api.Entities;
 using GlobalPayments.Api.PaymentMethods;
-using GlobalPayments.Api.Tests.TestData;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace GlobalPayments.Api.Tests.GpApi {
     [TestClass]
-    public class GpApiDebitTests {
+    public class GpApiDebitTests : BaseGpApiTests {
         public GpApiDebitTests() {
             ServicesContainer.ConfigureService(new GpApiConfig {
                 AppId = "Uyq6PzRbkorv2D4RQGlldEtunEeGNZll",
@@ -26,6 +25,8 @@ namespace GlobalPayments.Api.Tests.GpApi {
                 .WithAllowDuplicates(true)
                 .Execute();
             Assert.IsNotNull(response);
+            Assert.AreEqual(SUCCESS, response?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), response?.ResponseMessage);
         }
 
         [TestMethod]
@@ -43,6 +44,8 @@ namespace GlobalPayments.Api.Tests.GpApi {
                 .WithAllowDuplicates(true)
                 .Execute();
             Assert.IsNotNull(response);
+            Assert.AreEqual(SUCCESS, response?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), response?.ResponseMessage);
         }
 
         [TestMethod]
@@ -63,6 +66,8 @@ namespace GlobalPayments.Api.Tests.GpApi {
                 .WithTagData(tagData)
                 .Execute();
             Assert.IsNotNull(response);
+            Assert.AreEqual(SUCCESS, response?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), response?.ResponseMessage);
         }
 
         [TestMethod]
@@ -83,6 +88,8 @@ namespace GlobalPayments.Api.Tests.GpApi {
                 .WithTagData(tagData)
                 .Execute();
             Assert.IsNotNull(response);
+            Assert.AreEqual(SUCCESS, response?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), response?.ResponseMessage);
         }
     }
 }

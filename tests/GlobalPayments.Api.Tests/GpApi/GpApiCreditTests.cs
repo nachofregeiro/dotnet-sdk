@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace GlobalPayments.Api.Tests.GpApi
 {
     [TestClass]
-    public class GpApiCreditTests {
+    public class GpApiCreditTests : BaseGpApiTests {
         CreditCardData card;
 
         public GpApiCreditTests() {
@@ -30,11 +30,15 @@ namespace GlobalPayments.Api.Tests.GpApi
                 .WithAllowDuplicates(true)
                 .Execute();
             Assert.IsNotNull(transaction);
+            Assert.AreEqual(SUCCESS, transaction?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Preauthorized), transaction?.ResponseMessage);
 
             var capture = transaction.Capture(16m)
                 .WithGratuity(2m)
                 .Execute();
             Assert.IsNotNull(capture);
+            Assert.AreEqual(SUCCESS, capture?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), capture?.ResponseMessage);
         }
 
         [TestMethod]
@@ -51,6 +55,8 @@ namespace GlobalPayments.Api.Tests.GpApi
                 .WithAddress(address)
                 .Execute();
             Assert.IsNotNull(response);
+            Assert.AreEqual(SUCCESS, response?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), response?.ResponseMessage);
         }
 
         [TestMethod]
@@ -60,6 +66,8 @@ namespace GlobalPayments.Api.Tests.GpApi
                 .WithAllowDuplicates(true)
                 .Execute();
             Assert.IsNotNull(response);
+            Assert.AreEqual(SUCCESS, response?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), response?.ResponseMessage);
         }
 
         [TestMethod]
@@ -74,6 +82,8 @@ namespace GlobalPayments.Api.Tests.GpApi
                 .WithCurrency("USD")
                 .Execute();
             Assert.IsNotNull(response);
+            Assert.AreEqual(SUCCESS, response?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), response?.ResponseMessage);
         }
 
         [TestMethod]
@@ -87,6 +97,8 @@ namespace GlobalPayments.Api.Tests.GpApi
             var response = transaction.Reverse(12.99m)
                 .Execute();
             Assert.IsNotNull(response);
+            Assert.AreEqual(SUCCESS, response?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Reversed), response?.ResponseMessage);
         }
     }
 }

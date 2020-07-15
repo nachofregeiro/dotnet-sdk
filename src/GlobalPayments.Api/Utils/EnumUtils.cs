@@ -39,7 +39,7 @@ namespace GlobalPayments.Api.Utils {
         }
     }
 
-    internal class EnumConverter {
+    public class EnumConverter {
         public static string GetDescription(object value) {
             if (value is Enum) {
                 var description = value.GetType().GetRuntimeField(value.ToString()).GetCustomAttribute<DescriptionAttribute>();
