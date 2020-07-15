@@ -44,5 +44,45 @@ namespace GlobalPayments.Api.Tests.GpApi {
                 .Execute();
             Assert.IsNotNull(response);
         }
+
+        [TestMethod]
+        public void DebitSaleSwipeChip()
+        {
+            var track = new DebitTrackData
+            {
+                Value = ";4024720012345671=18125025432198712345?",
+                EntryMethod = EntryMethod.Swipe,
+                PinBlock = "AFEC374574FC90623D010000116001EE"
+            };
+
+            string tagData = "82021C008407A0000002771010950580000000009A031709289C01005F280201245F2A0201245F3401019F02060000000010009F03060000000000009F080200019F090200019F100706010A03A420009F1A0201249F26089CC473F4A4CE18D39F2701809F3303E0F8C89F34030100029F3501229F360200639F370435EFED379F410400000019";
+
+            var response = track.Charge(15.99m)
+                .WithCurrency("USD")
+                .WithAllowDuplicates(true)
+                .WithTagData(tagData)
+                .Execute();
+            Assert.IsNotNull(response);
+        }
+
+        [TestMethod]
+        public void DebitSaleContactlessChip()
+        {
+            var track = new DebitTrackData
+            {
+                Value = ";4024720012345671=18125025432198712345?",
+                EntryMethod = EntryMethod.Proximity,
+                PinBlock = "AFEC374574FC90623D010000116001EE"
+            };
+
+            string tagData = "82021C008407A0000002771010950580000000009A031709289C01005F280201245F2A0201245F3401019F02060000000010009F03060000000000009F080200019F090200019F100706010A03A420009F1A0201249F26089CC473F4A4CE18D39F2701809F3303E0F8C89F34030100029F3501229F360200639F370435EFED379F410400000019";
+
+            var response = track.Charge(25.95m)
+                .WithCurrency("USD")
+                .WithAllowDuplicates(true)
+                .WithTagData(tagData)
+                .Execute();
+            Assert.IsNotNull(response);
+        }
     }
 }
