@@ -74,18 +74,44 @@ namespace GlobalPayments.Api.Gateways {
             return response.RawResponse;
         }
 
+        private string GetEntryMode(AuthorizationBuilder builder) {
+            if (builder.PaymentMethod is ICardData card) {
+                if (card.ReaderPresent) {
+                    return card.CardPresent ? "MANUAL" : "IN_APP";
+                }
+                else {
+                    return card.CardPresent ? "MANUAL" : "ECOM";
+                }
+            }
+            else if (builder.PaymentMethod is ITrackData track) {
+                if (builder.TagData != null) {
+                    return track.EntryMethod.Equals(EntryMethod.Swipe) ? "CHIP" : "CONTACTLESS_CHIP";
+                }
+                else if (builder.HasEmvFallbackData) {
+                    return "CONTACTLESS_SWIPE";
+                }
+                return "SWIPE";
+            }
+            return "ECOM";
+        }
+
+        private string GetCaptureMode(AuthorizationBuilder builder) {
+            if (builder.MultiCapture) {
+                return "MULTIPLE";
+            }
+            else if (builder.TransactionType == TransactionType.Auth) {
+                return "LATER";
+            }
+            return "AUTO";
+        }
+
         public Transaction ProcessAuthorization(AuthorizationBuilder builder) {
 
-            //builder.TagData
-
             var paymentMethod = new JsonDoc()
-                .Set("entry_mode", "ECOM"); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE] //Todo: set field properly
+                .Set("entry_mode", GetEntryMode(builder)); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE]
 
             if (builder.PaymentMethod is ICardData) {
                 var cardData = builder.PaymentMethod as ICardData;
-
-                //cardData.CardPresent
-                //cardData.ReaderPresent
 
                 var card = new JsonDoc()
                     .Set("number", cardData.Number)
@@ -106,21 +132,6 @@ namespace GlobalPayments.Api.Gateways {
             }
             else if (builder.PaymentMethod is ITrackData) {
                 var track = builder.PaymentMethod as ITrackData;
-
-                switch (track.EntryMethod)
-                {
-                    case EntryMethod.Manual:
-                        paymentMethod.Set("entry_mode", "MANUAL", reset: true);
-                        break;
-                    case EntryMethod.Swipe:
-                        paymentMethod.Set("entry_mode", "SWIPE", reset: true);
-                        break;
-                    case EntryMethod.Proximity:
-                        paymentMethod.Set("entry_mode", "CONTACTLESS_SWIPE", reset: true);
-                        break;
-                    default:
-                        break;
-                }
 
                 var card = new JsonDoc()
                     .Set("number", track.Pan)
@@ -184,19 +195,11 @@ namespace GlobalPayments.Api.Gateways {
                 }
             }
 
-            string captureMode = "AUTO";
-            if (builder.MultiCapture) {
-                captureMode = "MULTIPLE";
-            }
-            else if (builder.TransactionType == TransactionType.Auth) {
-                captureMode = "LATER";
-            }
-
             var data = new JsonDoc()
                 .Set("account_name", "Transaction_Processing")
                 .Set("type", builder.TransactionType == TransactionType.Refund ? "REFUND" : "SALE") // [SALE, REFUND]
                 .Set("channel", EnumConverter.GetMapping(Target.GP_API, Channel)) // [CP, CNP]
-                .Set("capture_mode", captureMode) // [AUTO, LATER, MULTIPLE]
+                .Set("capture_mode", GetCaptureMode(builder)) // [AUTO, LATER, MULTIPLE]
                 //.Set("remaining_capture_count", "") //Pending Russell
                 .Set("authorization_mode", builder.AllowPartialAuth ? "PARTIAL" : "WHOLE") // [PARTIAL, WHOLE]
                 .Set("amount", builder.Amount.ToNumericCurrencyString())

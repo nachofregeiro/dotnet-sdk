@@ -63,11 +63,8 @@ namespace GlobalPayments.Api.Utils {
             return this;
         }
 
-        public JsonDoc Set<T>(string key, T value, bool force = false, bool reset = false) {
+        public JsonDoc Set<T>(string key, T value, bool force = false) {
             if (!EqualityComparer<T>.Default.Equals(value, default(T)) || force || typeof(T) == typeof(bool)) {
-                if (reset && _dict.ContainsKey(key)) {
-                    _dict.Remove(key);
-                }
                 if (_encoder != null) {
                     _dict.Add(key, _encoder.Encode(value));
                 }
