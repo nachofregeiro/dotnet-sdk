@@ -122,8 +122,8 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)) // [PREV_SUCCESS, PREV_FAILED]
                     .Set("cvv", cardData.Cvn)
                     .Set("cvv_indicator", EnumConverter.GetMapping(Target.GP_API, cardData.CvnPresenceIndicator)) // [ILLEGIBLE, NOT_PRESENT, PRESENT]
-                    .Set("avs_address", "Flat 123")
-                    .Set("avs_postal_code", "50001")
+                    .Set("avs_address", builder.BillingAddress?.StreetAddress1) 
+                    .Set("avs_postal_code", builder.BillingAddress?.PostalCode) 
                     .Set("funding", builder.PaymentMethod?.PaymentMethodType == PaymentMethodType.Debit ? "DEBIT" : "CREDIT") // [DEBIT, CREDIT]
                     .Set("authcode", builder.OfflineAuthCode);
                     //.Set("brand_reference", "")
@@ -142,8 +142,8 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)) // [PREV_SUCCESS, PREV_FAILED]
                     //.Set("cvv", cardData.Cvn)
                     //.Set("cvv_indicator", "") // [ILLEGIBLE, NOT_PRESENT, PRESENT]
-                    .Set("avs_address", "Flat 123")
-                    .Set("avs_postal_code", "50001")
+                    .Set("avs_address", builder.BillingAddress?.StreetAddress1) 
+                    .Set("avs_postal_code", builder.BillingAddress?.PostalCode) 
                     .Set("funding", builder.PaymentMethod?.PaymentMethodType == PaymentMethodType.Debit ? "DEBIT" : "CREDIT") // [DEBIT, CREDIT]
                     .Set("authcode", builder.OfflineAuthCode);
                     //.Set("brand_reference", "")

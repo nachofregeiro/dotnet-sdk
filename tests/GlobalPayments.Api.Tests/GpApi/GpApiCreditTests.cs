@@ -39,8 +39,16 @@ namespace GlobalPayments.Api.Tests.GpApi
 
         [TestMethod]
         public void CreditSale() {
+            var address = new Address {
+                StreetAddress1 = "123 Main St.",
+                City = "Downtown",
+                State = "NJ",
+                Country = "US",
+                PostalCode = "12345"
+            };
             var response = card.Charge(19.99m)
                 .WithCurrency("USD")
+                .WithAddress(address)
                 .Execute();
             Assert.IsNotNull(response);
         }
