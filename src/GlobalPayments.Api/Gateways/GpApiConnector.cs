@@ -75,11 +75,17 @@ namespace GlobalPayments.Api.Gateways {
         }
 
         public Transaction ProcessAuthorization(AuthorizationBuilder builder) {
+
+            //builder.TagData
+
             var paymentMethod = new JsonDoc()
                 .Set("entry_mode", "ECOM"); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE] //Todo: set field properly
 
             if (builder.PaymentMethod is ICardData) {
                 var cardData = builder.PaymentMethod as ICardData;
+
+                //cardData.CardPresent
+                //cardData.ReaderPresent
 
                 var card = new JsonDoc()
                     .Set("number", cardData.Number)
@@ -100,12 +106,27 @@ namespace GlobalPayments.Api.Gateways {
             }
             else if (builder.PaymentMethod is ITrackData) {
                 var track = builder.PaymentMethod as ITrackData;
-                
+
+                switch (track.EntryMethod)
+                {
+                    case EntryMethod.Manual:
+                        paymentMethod.Set("entry_mode", "MANUAL", reset: true);
+                        break;
+                    case EntryMethod.Swipe:
+                        paymentMethod.Set("entry_mode", "SWIPE", reset: true);
+                        break;
+                    case EntryMethod.Proximity:
+                        paymentMethod.Set("entry_mode", "CONTACTLESS_SWIPE", reset: true);
+                        break;
+                    default:
+                        break;
+                }
+
                 var card = new JsonDoc()
                     .Set("number", track.Pan)
                     .Set("expiry_month", track.Expiry?.Substring(2, 2))
                     .Set("expiry_year", track.Expiry?.Substring(0, 2))
-                    .Set("track", track.TrackData)
+                    .Set("track", track.Value)
                     .Set("tag", builder.TagData)
                     .Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)) // [PREV_SUCCESS, PREV_FAILED]
                     //.Set("cvv", cardData.Cvn)

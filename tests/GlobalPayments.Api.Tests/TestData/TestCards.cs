@@ -7,8 +7,9 @@ namespace GlobalPayments.Api.Tests.TestData {
         public static DebitTrackData AsDebit(this CreditTrackData card, string pinBlock) {
             return new DebitTrackData {
                 Value = card.Value,
+                EntryMethod = card.EntryMethod,
                 EncryptionData = card.EncryptionData,
-                PinBlock = pinBlock
+                PinBlock = pinBlock,
             };
         }
 
