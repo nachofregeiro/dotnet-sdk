@@ -134,19 +134,22 @@ namespace GlobalPayments.Api.Gateways {
                 var track = builder.PaymentMethod as ITrackData;
 
                 var card = new JsonDoc()
-                    .Set("number", track.Pan)
-                    .Set("expiry_month", track.Expiry?.Substring(2, 2))
-                    .Set("expiry_year", track.Expiry?.Substring(0, 2))
                     .Set("track", track.Value)
                     .Set("tag", builder.TagData)
-                    .Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)) // [PREV_SUCCESS, PREV_FAILED]
                     //.Set("cvv", cardData.Cvn)
                     //.Set("cvv_indicator", "") // [ILLEGIBLE, NOT_PRESENT, PRESENT]
                     .Set("avs_address", builder.BillingAddress?.StreetAddress1) 
                     .Set("avs_postal_code", builder.BillingAddress?.PostalCode) 
-                    .Set("funding", builder.PaymentMethod?.PaymentMethodType == PaymentMethodType.Debit ? "DEBIT" : "CREDIT") // [DEBIT, CREDIT]
                     .Set("authcode", builder.OfflineAuthCode);
                     //.Set("brand_reference", "")
+
+                if (builder.TransactionType == TransactionType.Sale) {
+                    card.Set("number", track.Pan);
+                    card.Set("expiry_month", track.Expiry?.Substring(2, 2));
+                    card.Set("expiry_year", track.Expiry?.Substring(0, 2));
+                    card.Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)); // [PREV_SUCCESS, PREV_FAILED]
+                    card.Set("funding", builder.PaymentMethod?.PaymentMethodType == PaymentMethodType.Debit ? "DEBIT" : "CREDIT"); // [DEBIT, CREDIT]
+                }
 
                 paymentMethod.Set("card", card);
             }
@@ -332,9 +335,10 @@ namespace GlobalPayments.Api.Gateways {
                     TransactionStatus = doc.GetValue<string>("status"),
                     TransactionType = doc.GetValue<string>("type"),
                     Channel = doc.GetValue<string>("channel"),
-                    Amount = doc.GetValue<decimal>("amount"),
+                    Amount = doc.GetValue<decimal?>("amount"),
                     Currency = doc.GetValue<string>("currency"),
                     ReferenceNumber = doc.GetValue<string>("reference"),
+                    ClientTransactionId = doc.GetValue<string>("reference"),
                     // ?? = doc.GetValue<DateTime>("time_created_reference"),
                     BatchSequenceNumber = doc.GetValue<string>("batch_id"),
                     Country = doc.GetValue<string>("country"),
