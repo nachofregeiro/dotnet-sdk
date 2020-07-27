@@ -335,7 +335,7 @@ namespace GlobalPayments.Api.Gateways {
                     TransactionStatus = doc.GetValue<string>("status"),
                     TransactionType = doc.GetValue<string>("type"),
                     Channel = doc.GetValue<string>("channel"),
-                    Amount = doc.GetValue<decimal?>("amount"),
+                    Amount = doc.GetValue<decimal>("amount"),
                     Currency = doc.GetValue<string>("currency"),
                     ReferenceNumber = doc.GetValue<string>("reference"),
                     ClientTransactionId = doc.GetValue<string>("reference"),
