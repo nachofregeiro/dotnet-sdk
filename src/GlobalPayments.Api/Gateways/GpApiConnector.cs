@@ -119,14 +119,19 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("expiry_year", cardData.ExpYear.HasValue ? cardData.ExpYear.ToString().PadLeft(4, '0').Substring(2, 2) : string.Empty)
                     //.Set("track", "")
                     .Set("tag", builder.TagData)
-                    .Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)) // [PREV_SUCCESS, PREV_FAILED]
                     .Set("cvv", cardData.Cvn)
-                    .Set("cvv_indicator", EnumConverter.GetMapping(Target.GP_API, cardData.CvnPresenceIndicator)) // [ILLEGIBLE, NOT_PRESENT, PRESENT]
                     .Set("avs_address", builder.BillingAddress?.StreetAddress1) 
                     .Set("avs_postal_code", builder.BillingAddress?.PostalCode) 
                     .Set("funding", builder.PaymentMethod?.PaymentMethodType == PaymentMethodType.Debit ? "DEBIT" : "CREDIT") // [DEBIT, CREDIT]
                     .Set("authcode", builder.OfflineAuthCode);
                     //.Set("brand_reference", "")
+
+                if (builder.EmvLastChipRead != null) {
+                    card.Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)); // [PREV_SUCCESS, PREV_FAILED]
+                }
+                if (cardData.CvnPresenceIndicator == CvnPresenceIndicator.Present || cardData.CvnPresenceIndicator == CvnPresenceIndicator.Illegible || cardData.CvnPresenceIndicator == CvnPresenceIndicator.NotOnCard) {
+                    card.Set("cvv_indicator", EnumConverter.GetMapping(Target.GP_API, cardData.CvnPresenceIndicator)); // [ILLEGIBLE, NOT_PRESENT, PRESENT]
+                }
 
                 paymentMethod.Set("card", card);
             }
