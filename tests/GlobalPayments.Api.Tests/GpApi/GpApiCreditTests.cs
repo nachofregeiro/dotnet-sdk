@@ -100,5 +100,36 @@ namespace GlobalPayments.Api.Tests.GpApi
             Assert.AreEqual(SUCCESS, response?.ResponseCode);
             Assert.AreEqual(GetMapping(TransactionStatus.Reversed), response?.ResponseMessage);
         }
+
+        [TestMethod]
+        public void CreditAuthorizationForMultiCapture()
+        {
+            var authorization = card.Authorize(14m)
+                .WithCurrency("USD")
+                .WithMultiCapture(true)
+                .WithAllowDuplicates(true)
+                .Execute();
+            Assert.IsNotNull(authorization);
+            Assert.AreEqual(SUCCESS, authorization?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Preauthorized), authorization?.ResponseMessage);
+
+            var capture1 = authorization.Capture(3m)
+                .Execute();
+            Assert.IsNotNull(capture1);
+            Assert.AreEqual(SUCCESS, capture1?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), capture1?.ResponseMessage);
+
+            var capture2 = authorization.Capture(5m)
+                .Execute();
+            Assert.IsNotNull(capture2);
+            Assert.AreEqual(SUCCESS, capture2?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), capture2?.ResponseMessage);
+
+            var capture3 = authorization.Capture(7m)
+                .Execute();
+            Assert.IsNotNull(capture3);
+            Assert.AreEqual(SUCCESS, capture3?.ResponseCode);
+            Assert.AreEqual(GetMapping(TransactionStatus.Captured), capture3?.ResponseMessage);
+        }
     }
 }
