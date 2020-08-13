@@ -55,20 +55,20 @@ namespace GlobalPayments.Api.Tests {
             Assert.IsNotNull(authorization);
             Assert.AreEqual("00", authorization.ResponseCode, authorization.ResponseMessage);
 
-            var capture = authorization.Capture(3m)
+            var capture1 = authorization.Capture(3m)
                 .Execute();
-            Assert.IsNotNull(capture);
-            Assert.AreEqual("00", capture.ResponseCode, capture.ResponseMessage);
+            Assert.IsNotNull(capture1);
+            Assert.AreEqual("00", capture1.ResponseCode, capture1.ResponseMessage);
 
             var capture2 = authorization.Capture(5m)
                 .Execute();
-            Assert.IsNotNull(capture);
-            Assert.AreEqual("00", capture.ResponseCode, capture.ResponseMessage);
+            Assert.IsNotNull(capture2);
+            Assert.AreEqual("00", capture2.ResponseCode, capture2.ResponseMessage);
 
             var capture3 = authorization.Capture(7m)
                 .Execute();
-            Assert.IsNotNull(capture);
-            Assert.AreEqual("00", capture.ResponseCode, capture.ResponseMessage);
+            Assert.IsNotNull(capture3);
+            Assert.AreEqual("00", capture3.ResponseCode, capture3.ResponseMessage);
         }
 
         [TestMethod]
