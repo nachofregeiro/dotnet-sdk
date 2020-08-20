@@ -18,6 +18,10 @@ namespace GlobalPayments.Api.Gateways {
         public Channel Channel { get; set; }
         public Language Language { get; set; }
         public string SessionToken { get; internal set; }
+        public string DataAccountName { get; internal set; }
+        public string DisputeManagementAccountName { get; internal set; }
+        public string TokenizationAccountName { get; internal set; }
+        public string TransactionProcessingAccountName { get; internal set; }
 
         public bool SupportsHostedPayments => throw new NotImplementedException();
 
@@ -37,6 +41,10 @@ namespace GlobalPayments.Api.Gateways {
             //    throw new ApiException(response.ErrorMessage);
 
             SessionToken = response.Token;
+            DataAccountName = response.DataAccountName;
+            DisputeManagementAccountName = response.DisputeManagementAccountName;
+            TokenizationAccountName = response.TokenizationAccountName;
+            TransactionProcessingAccountName = response.TransactionProcessingAccountName;
 
             // Set the authorization header
             Headers["Authorization"] = $"Bearer {response.Token}";
@@ -126,6 +134,19 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("authcode", builder.OfflineAuthCode);
                     //.Set("brand_reference", "")
 
+                if (builder.RequestMultiUseToken)
+                {
+                    var tokenizationData = new JsonDoc()
+                        .Set("account_name", TokenizationAccountName)
+                        .Set("reference", builder.ClientTransactionId ?? Guid.NewGuid().ToString())
+                        .Set("name", "")
+                        .Set("card", card);
+
+                    var tokenizationResponse = DoTransaction(HttpMethod.Post, "/ucp/payment-methods", tokenizationData.ToString());
+
+                    return MapResponse(tokenizationResponse);
+                }
+
                 if (builder.EmvLastChipRead != null) {
                     card.Set("chip_condition", EnumConverter.GetMapping(Target.GP_API, builder.EmvLastChipRead)); // [PREV_SUCCESS, PREV_FAILED]
                 }
@@ -204,7 +225,7 @@ namespace GlobalPayments.Api.Gateways {
             }
 
             var data = new JsonDoc()
-                .Set("account_name", "Transaction_Processing")
+                .Set("account_name", TransactionProcessingAccountName)
                 .Set("type", builder.TransactionType == TransactionType.Refund ? "REFUND" : "SALE") // [SALE, REFUND]
                 .Set("channel", EnumConverter.GetMapping(Target.GP_API, Channel)) // [CP, CNP]
                 .Set("capture_mode", GetCaptureMode(builder)) // [AUTO, LATER, MULTIPLE]
@@ -271,6 +292,7 @@ namespace GlobalPayments.Api.Gateways {
                     SequenceNumber = json.GetValue<string>("batch_id")
                 };
                 transaction.ResponseCode = json.Get("action").GetValue<string>("result_code");
+                transaction.Token = json.GetValue<string>("id");
             }
 
             return transaction;
