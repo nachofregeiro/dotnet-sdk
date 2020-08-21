@@ -268,6 +268,35 @@ namespace GlobalPayments.Api.Gateways {
             else if (builder.TransactionType == TransactionType.Reversal) {
                 response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/reversal", data.ToString());
             }
+            else if (builder.TransactionType == TransactionType.TokenUpdate && builder.PaymentMethod is CreditCardData) {
+                var cardData = builder.PaymentMethod as CreditCardData;
+
+                //{
+                //  "reference": "card_default_1",
+                //  "name": "string",
+                //  "card": {
+                //    "number": "4263970000005262",
+                //    "expiry_month": "12",
+                //    "expiry_year": "25"
+                //  }
+                //}
+
+                var card = new JsonDoc()
+                    .Set("number", cardData.Number)
+                    .Set("expiry_month", cardData.ExpMonth.HasValue ? cardData.ExpMonth.ToString().PadLeft(2, '0') : string.Empty)
+                    .Set("expiry_year", cardData.ExpYear.HasValue ? cardData.ExpYear.ToString().PadLeft(4, '0').Substring(2, 2) : string.Empty);
+
+                var payload = new JsonDoc()
+                    .Set("reference", "")
+                    .Set("name", "")
+                    .Set("card", card);
+
+                //ToDo: Should be PATCH
+                response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{(builder.PaymentMethod as ITokenizable).Token}", payload.ToString());
+            }
+            else if (builder.TransactionType == TransactionType.TokenDelete && builder.PaymentMethod is ITokenizable) {
+                response = DoTransaction(HttpMethod.Post, $"/ucp/payment-methods/{(builder.PaymentMethod as ITokenizable).Token}/delete");
+            }
             return MapResponse(response);
         }
 

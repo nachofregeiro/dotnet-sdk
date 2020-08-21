@@ -37,14 +37,14 @@ namespace GlobalPayments.Api.Tests.GpApi
         [TestMethod]
         public void UpdateToken()
         {
-            //var token = new CreditCardData {
-            //    Token = _token,
-            //    ExpMonth = 12,
-            //    ExpYear = 2025
-            //};
-            //Assert.IsTrue(token.UpdateTokenExpiry());
+            var token = new CreditCardData {
+                Token = _token,
+                ExpMonth = 12,
+                ExpYear = 2025
+            };
+            Assert.IsTrue(token.UpdateTokenExpiry());
 
-            //// should succeed
+            // should succeed
             //var response = token.Verify().Execute();
             //Assert.IsNotNull(response);
             //Assert.AreEqual("00", response.ResponseCode);
@@ -53,10 +53,10 @@ namespace GlobalPayments.Api.Tests.GpApi
         [TestMethod]
         public void DeleteToken()
         {
-            //var token = new CreditCardData {
-            //    Token = _token
-            //};
-            //Assert.IsTrue(token.DeleteToken());
+            var token = new CreditCardData {
+                Token = _token
+            };
+            Assert.IsTrue(token.DeleteToken());
 
             //try {
             //    token.Verify().Execute();
