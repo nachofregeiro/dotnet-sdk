@@ -1,19 +1,14 @@
 ﻿using GlobalPayments.Api.Entities;
 using GlobalPayments.Api.PaymentMethods;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace GlobalPayments.Api.Tests.GpApi
 {
     [TestClass]
-    public class GpApiTokenManagement
-    {
+    public class GpApiTokenManagement : BaseGpApiTests {
         private string _token;
 
-        public GpApiTokenManagement()
-        {
+        public GpApiTokenManagement() {
             ServicesContainer.ConfigureService(new GpApiConfig {
                 AppId = "Uyq6PzRbkorv2D4RQGlldEtunEeGNZll",
                 AppKey = "QDsW1ETQKHX6Y4TA",
@@ -35,8 +30,20 @@ namespace GlobalPayments.Api.Tests.GpApi
         }
 
         [TestMethod]
-        public void UpdateToken()
-        {
+        public void VerifyToken() {
+            var token = new CreditCardData {
+                Token = _token,
+            };
+
+            var response = token.Verify().Execute();
+
+            Assert.IsNotNull(response);
+            Assert.AreEqual("00", response.ResponseCode);
+            Assert.AreEqual("ACTIVE", response.ResponseMessage);
+        }
+
+        [TestMethod]
+        public void UpdateToken() {
             var token = new CreditCardData {
                 Token = _token,
                 ExpMonth = 12,
@@ -44,26 +51,26 @@ namespace GlobalPayments.Api.Tests.GpApi
             };
             Assert.IsTrue(token.UpdateTokenExpiry());
 
-            // should succeed
-            //var response = token.Verify().Execute();
-            //Assert.IsNotNull(response);
-            //Assert.AreEqual("00", response.ResponseCode);
+            var response = token.Verify().Execute();
+
+            Assert.IsNotNull(response);
+            Assert.AreEqual("00", response.ResponseCode);
+            Assert.AreEqual("ACTIVE", response.ResponseMessage);
         }
 
         [TestMethod]
-        public void DeleteToken()
-        {
+        public void DeleteToken() {
             var token = new CreditCardData {
                 Token = _token
             };
             Assert.IsTrue(token.DeleteToken());
 
-            //try {
-            //    token.Verify().Execute();
-            //}
-            //catch (GatewayException ex) {
-            //    Assert.AreEqual("27", ex.ResponseCode);
-            //}
+            try {
+                token.Verify().Execute();
+            }
+            catch (GatewayException ex) {
+                Assert.AreEqual("RESOURCE_NOT_FOUND", ex.ResponseCode);
+            }
         }
     }
 }
