@@ -287,7 +287,7 @@ namespace GlobalPayments.Api.Gateways {
                 var payload = new JsonDoc()
                     .Set("card", card);
 
-                response = DoTransaction(HttpMethod.Put, $"/ucp/payment-methods/{(builder.PaymentMethod as ITokenizable).Token}/edit", payload.ToString());
+                response = DoTransaction(new HttpMethod("PATCH"), $"/ucp/payment-methods/{(builder.PaymentMethod as ITokenizable).Token}/edit", payload.ToString());
             }
             else if (builder.TransactionType == TransactionType.TokenDelete && builder.PaymentMethod is ITokenizable) {
                 response = DoTransaction(HttpMethod.Post, $"/ucp/payment-methods/{(builder.PaymentMethod as ITokenizable).Token}/delete");
