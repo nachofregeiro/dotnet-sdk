@@ -134,17 +134,23 @@ namespace GlobalPayments.Api.Gateways {
                     .Set("authcode", builder.OfflineAuthCode);
                     //.Set("brand_reference", "")
 
-                if (builder.RequestMultiUseToken)
-                {
-                    var tokenizationData = new JsonDoc()
-                        .Set("account_name", TokenizationAccountName)
-                        .Set("reference", builder.ClientTransactionId ?? Guid.NewGuid().ToString())
-                        .Set("name", "")
-                        .Set("card", card);
+                if (builder.TransactionType == TransactionType.Verify) {
+                    if (builder.RequestMultiUseToken) {
+                        var tokenizationData = new JsonDoc()
+                            .Set("account_name", TokenizationAccountName)
+                            .Set("reference", builder.ClientTransactionId ?? Guid.NewGuid().ToString())
+                            .Set("name", "")
+                            .Set("card", card);
 
-                    var tokenizationResponse = DoTransaction(HttpMethod.Post, "/ucp/payment-methods", tokenizationData.ToString());
+                        var tokenizationResponse = DoTransaction(HttpMethod.Post, "/ucp/payment-methods", tokenizationData.ToString());
 
-                    return MapResponse(tokenizationResponse);
+                        return MapResponse(tokenizationResponse);
+                    }
+                    else {
+                        var tokenizationResponse = DoTransaction(HttpMethod.Get, $"/ucp/payment-methods/{(builder.PaymentMethod as ITokenizable).Token}");
+
+                        return MapResponse(tokenizationResponse);
+                    }
                 }
 
                 if (builder.EmvLastChipRead != null) {
@@ -255,44 +261,33 @@ namespace GlobalPayments.Api.Gateways {
         public Transaction ManageTransaction(ManagementBuilder builder) {
             string response = string.Empty;
 
-            var data = new JsonDoc()
-                .Set("amount", builder.Amount.ToNumericCurrencyString());
-
             if (builder.TransactionType == TransactionType.Capture) {
-                data.Set("gratuity_amount", builder.Gratuity.ToNumericCurrencyString());
+                var data = new JsonDoc()
+                    .Set("amount", builder.Amount.ToNumericCurrencyString())
+                    .Set("gratuity_amount", builder.Gratuity.ToNumericCurrencyString());
                 response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/capture", data.ToString());
             }
             else if (builder.TransactionType == TransactionType.Refund) {
+                var data = new JsonDoc()
+                    .Set("amount", builder.Amount.ToNumericCurrencyString());
                 response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/refund", data.ToString());
             }
             else if (builder.TransactionType == TransactionType.Reversal) {
+                var data = new JsonDoc()
+                    .Set("amount", builder.Amount.ToNumericCurrencyString());
                 response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{builder.TransactionId}/reversal", data.ToString());
             }
             else if (builder.TransactionType == TransactionType.TokenUpdate && builder.PaymentMethod is CreditCardData) {
                 var cardData = builder.PaymentMethod as CreditCardData;
 
-                //{
-                //  "reference": "card_default_1",
-                //  "name": "string",
-                //  "card": {
-                //    "number": "4263970000005262",
-                //    "expiry_month": "12",
-                //    "expiry_year": "25"
-                //  }
-                //}
-
                 var card = new JsonDoc()
-                    .Set("number", cardData.Number)
                     .Set("expiry_month", cardData.ExpMonth.HasValue ? cardData.ExpMonth.ToString().PadLeft(2, '0') : string.Empty)
                     .Set("expiry_year", cardData.ExpYear.HasValue ? cardData.ExpYear.ToString().PadLeft(4, '0').Substring(2, 2) : string.Empty);
 
                 var payload = new JsonDoc()
-                    .Set("reference", "")
-                    .Set("name", "")
                     .Set("card", card);
 
-                //ToDo: Should be PATCH
-                response = DoTransaction(HttpMethod.Post, $"/ucp/transactions/{(builder.PaymentMethod as ITokenizable).Token}", payload.ToString());
+                response = DoTransaction(HttpMethod.Put, $"/ucp/payment-methods/{(builder.PaymentMethod as ITokenizable).Token}/edit", payload.ToString());
             }
             else if (builder.TransactionType == TransactionType.TokenDelete && builder.PaymentMethod is ITokenizable) {
                 response = DoTransaction(HttpMethod.Post, $"/ucp/payment-methods/{(builder.PaymentMethod as ITokenizable).Token}/delete");
