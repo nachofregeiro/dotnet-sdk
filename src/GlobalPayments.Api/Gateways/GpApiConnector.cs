@@ -114,6 +114,9 @@ namespace GlobalPayments.Api.Gateways {
         }
 
         public Transaction ProcessAuthorization(AuthorizationBuilder builder) {
+            if (string.IsNullOrEmpty(SessionToken)) {
+                SignIn();
+            }
 
             var paymentMethod = new JsonDoc()
                 .Set("entry_mode", GetEntryMode(builder)); // [MOTO, ECOM, IN_APP, CHIP, SWIPE, MANUAL, CONTACTLESS_CHIP, CONTACTLESS_SWIPE]
@@ -374,6 +377,14 @@ namespace GlobalPayments.Api.Gateways {
 
             JsonDoc json = JsonDoc.Parse(rawResponse);
 
+            Func<object, decimal?> decimalConverter = (value) => {
+                decimal amount;
+                if (value is string && decimal.TryParse(value as string, out amount)) {
+                    return amount;
+                }
+                return null;
+            };
+
             Func<JsonDoc, TransactionSummary> mapTransactionSummary = (doc) => {
                 JsonDoc paymentMethod = doc.Get("payment_method");
 
@@ -386,7 +397,7 @@ namespace GlobalPayments.Api.Gateways {
                     TransactionStatus = doc.GetValue<string>("status"),
                     TransactionType = doc.GetValue<string>("type"),
                     Channel = doc.GetValue<string>("channel"),
-                    Amount = doc.GetValue<decimal>("amount"),
+                    Amount = doc.GetValue("amount", decimalConverter),
                     Currency = doc.GetValue<string>("currency"),
                     ReferenceNumber = doc.GetValue<string>("reference"),
                     ClientTransactionId = doc.GetValue<string>("reference"),
